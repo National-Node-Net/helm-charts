@@ -1,0 +1,62 @@
+# ============================================================================
+# OPA (Open Policy Agent) Runtime Component Values
+# ============================================================================
+# Standalone PDP (Policy Decision Point) — own Deployment + ClusterIP Service,
+# NOT a sidecar. Adapted from the management-node OPA runtime in
+# ndtp-application-continuous-delivery (DPAV-3021), which is the proven,
+# live-tested reference design this is based on.
+#
+# No official Helm chart exists for OPA (verified on ArtifactHub — only
+# unrelated/low-adoption community charts, e.g. Gatekeeper which is an
+# admission controller, not a general-purpose PDP), so this component is
+# hand-rolled to match this repo's convention for custom services
+# (federator-server/client, certificate-manager), the same way those are.
+# ============================================================================
+
+opa:
+  enabled: true
+
+  replicaCount: 2 # stateless (reloads the same ConfigMap on every pod start) — cheap to run 2 for basic resilience
+
+  image:
+    repository: openpolicyagent/opa
+    tag: "1.20.0" # pinned, pulled directly from Docker Hub — same precedent as hashicorp/vault in this chart
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+
+  serviceAccount:
+    create: true
+    name: "" # Defaults to <release>-opa via helper
+    annotations: {}
+
+  podAnnotations: {}
+
+  podSecurityContext: {}
+
+  # OPA never writes to its own filesystem in this config (no bundle persistence, no disk cache)
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
+  # Guaranteed QoS (requests == limits) — good practice for a PDP sitting on a
+  # PEP's synchronous request path. Sized for a single trivial placeholder
+  # policy with negligible request volume, not production-scale traffic —
+  # revisit once a real PEP integration exists.
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  service:
+    type: ClusterIP
+    port: 8181
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

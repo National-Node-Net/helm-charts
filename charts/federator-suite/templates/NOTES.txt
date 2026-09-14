@@ -27,6 +27,9 @@ Components Deployed:
   ✓ Federator Client
   ✓ HashiCorp Vault (HA Raft, KV v2)
   ✓ Certificate Manager (headless scheduler)
+{{- if .Values.opa.enabled }}
+  ✓ OPA (Open Policy Agent) PDP — {{ include "federator-suite.opa.addr" . }}
+{{- end }}
 {{- if .Values.kafkaUi.enabled }}
   ✓ Kafka UI
 {{- end }}
