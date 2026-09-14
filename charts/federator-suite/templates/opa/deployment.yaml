@@ -1,0 +1,101 @@
+{{- if .Values.opa.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "federator-suite.opa.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "federator-suite.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opa
+spec:
+  replicas: {{ .Values.opa.replicaCount | default 2 }}
+  selector:
+    matchLabels:
+      app: opa
+      {{ include "federator-suite.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/opa/configmap-policies.yaml") . | sha256sum }}
+        # No Istio sidecar regardless of the chart-wide serviceMesh.istio.enabled
+        sidecar.istio.io/inject: "false"
+        {{- with .Values.opa.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        app: opa
+        {{ include "federator-suite.labels" . | nindent 8 }}
+        app.kubernetes.io/component: opa
+    spec:
+      serviceAccountName: {{ include "federator-suite.opa.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      restartPolicy: Always
+      {{- with .Values.opa.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.opa.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.opa.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.opa.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.opa.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: opa
+          image: "{{ .Values.opa.image.repository }}:{{ .Values.opa.image.tag }}"
+          imagePullPolicy: {{ .Values.opa.image.pullPolicy | default "IfNotPresent" }}
+          args:
+            - "run"
+            - "--server"
+            - "--addr=0.0.0.0:8181"
+            - "--log-level=info"
+            - "--set=decision_logs.console=true"
+            # REQUIRED: k8s ConfigMap volumes mount via hidden ..data/..<timestamp>
+            # symlink dirs; without this OPA loads every file 3x and fails to
+            # start with "multiple default rules"
+            - "--ignore=.*"
+            - "/policies"
+          ports:
+            - name: http
+              containerPort: 8181
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health/ready # requires policies/health.rego (system.health.ready)
+              port: 8181
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /health/live # requires policies/health.rego (system.health.live)
+              port: 8181
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.opa.resources | nindent 12 }}
+          volumeMounts:
+            - name: opa-policies
+              mountPath: /policies
+              readOnly: true
+          securityContext:
+            {{- toYaml .Values.opa.securityContext | nindent 12 }}
+      volumes:
+        - name: opa-policies
+          configMap:
+            name: {{ include "federator-suite.opa.fullname" . }}-policies
+{{- end }}

@@ -1,3 +1,4 @@
+{{- if or .Values.certificateManager.enabled .Values.federatorServer.enabled .Values.federatorClient.enabled }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -16,3 +17,4 @@ spec:
   {{- if .Values.certificateManager.persistence.storageClass }}
   storageClassName: {{ .Values.certificateManager.persistence.storageClass | quote }}
   {{- end }}
+{{- end }}
