@@ -600,3 +600,32 @@ Used by certificate-manager (read-write) and server/client deployments (read-onl
 {{- define "federator-suite.certStorage.claimName" -}}
 {{- printf "%s-cert-storage" .Release.Name }}
 {{- end }}
+
+{{/* ======================================================================
+     OPA (Open Policy Agent) Helpers
+     ====================================================================== */}}
+
+{{/*
+OPA full name
+*/}}
+{{- define "federator-suite.opa.fullname" -}}
+{{- printf "%s-opa" .Release.Name }}
+{{- end }}
+
+{{/*
+OPA service account name
+*/}}
+{{- define "federator-suite.opa.serviceAccountName" -}}
+{{- if .Values.opa.serviceAccount.create }}
+{{- default (printf "%s-opa" .Release.Name) .Values.opa.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.opa.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{/*
+OPA internal address — ClusterIP Service DNS for a future PEP to call.
+*/}}
+{{- define "federator-suite.opa.addr" -}}
+{{- printf "http://%s-opa.%s.svc.cluster.local:%v" .Release.Name .Release.Namespace (.Values.opa.service.port | default 8181) }}
+{{- end }}

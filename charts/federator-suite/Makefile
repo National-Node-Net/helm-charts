@@ -26,7 +26,7 @@ RELEASE_NAME ?= federator-suite
 ORG ?= bcc
 CHART_PATH = .
 
-COMPONENT_VALUES = -f values/common-values.yaml -f values/kafka.yaml -f values/valkey.yaml -f values/vault.yaml -f values/certificate-manager.yaml -f values/federator.yaml -f values/kafka-ui.yaml -f values/valkey-ui.yaml -f values/istio.yaml
+COMPONENT_VALUES = -f values/common-values.yaml -f values/kafka.yaml -f values/valkey.yaml -f values/vault.yaml -f values/certificate-manager.yaml -f values/opa.yaml -f values/federator.yaml -f values/kafka-ui.yaml -f values/valkey-ui.yaml -f values/istio.yaml
 
 ifeq ($(ENV),local)
 VALUES_FILES = $(COMPONENT_VALUES) -f values/overrides/local/local.yaml -f values/overrides/local/$(ORG).yaml
@@ -155,6 +155,7 @@ validate: ## Validate configuration before deployment
 	@test -f values/valkey.yaml || (echo "ERROR: values/valkey.yaml not found" && exit 1)
 	@test -f values/vault.yaml || (echo "ERROR: values/vault.yaml not found" && exit 1)
 	@test -f values/certificate-manager.yaml || (echo "ERROR: values/certificate-manager.yaml not found" && exit 1)
+	@test -f values/opa.yaml || (echo "ERROR: values/opa.yaml not found" && exit 1)
 	@test -f values/federator.yaml || (echo "ERROR: values/federator.yaml not found" && exit 1)
 ifeq ($(ENV),local)
 	@test -f values/overrides/local/local.yaml || (echo "ERROR: values/overrides/local/local.yaml not found" && exit 1)
@@ -297,6 +298,13 @@ healthcheck: ## Check all pods are running and error-free
 		kubectl exec -n $(NAMESPACE) $$CM_POD -- sh -c "pgrep -f 'java.*certificate-manager' > /dev/null && echo '  ✓ Certificate manager process running' || echo '  ⚠ Certificate manager process not found'" 2>/dev/null || echo "  ⚠ Cannot check certificate manager"; \
 	fi
 	@echo ""
+	@echo "OPA health:"
+	@OPA_POD=$$(kubectl get pod -l app=opa -n $(NAMESPACE) -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); \
+	if [ -z "$$OPA_POD" ]; then echo "  ⚠ opa pod not found"; else \
+		READY=$$(kubectl get pod "$$OPA_POD" -n $(NAMESPACE) -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null); \
+		if [ "$$READY" = "true" ]; then echo "  ✓ OPA responding (readiness probe: /health/ready)"; else echo "  ⚠ OPA not ready"; fi; \
+	fi
+	@echo ""
 	@echo "Error check (all pods, last 100 lines):"
 	@ERROR_FOUND=0; \
 	for pod in $$(kubectl get pods -n $(NAMESPACE) -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do \
@@ -323,6 +331,10 @@ logs-server: ## View federator-server logs
 logs-client: ## View federator-client logs
 	@kubectl logs -l app=federator-client -n $(NAMESPACE) --tail=100 -c federator-client -f
 
+.PHONY: logs-opa
+logs-opa: ## View OPA logs
+	@kubectl logs -l app=opa -n $(NAMESPACE) --tail=100 -f
+
 .PHONY: logs
 logs: ## Show last 50 lines from all pods
 	@for pod in $$(kubectl get pods -n $(NAMESPACE) -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do \
@@ -336,17 +348,19 @@ logs: ## Show last 50 lines from all pods
 # ============================================
 
 .PHONY: port-forward-all
-port-forward-all: ## Forward Kafka UI (8088), Valkey UI (5540), JobRunr (8085), Vault UI (8200)
+port-forward-all: ## Forward Kafka UI (8088), Valkey UI (5540), JobRunr (8085), Vault UI (8200), OPA (8181)
 	@echo "Starting port forwards..."
 	@kubectl port-forward -n $(NAMESPACE) svc/kafka-ui 8088:8080 > /dev/null 2>&1 &
 	@kubectl port-forward -n $(NAMESPACE) svc/valkey-ui 5540:5540 > /dev/null 2>&1 &
 	@kubectl port-forward -n $(NAMESPACE) svc/$(RELEASE_NAME)-federator-client 8085:8085 > /dev/null 2>&1 &
 	@kubectl port-forward -n $(NAMESPACE) svc/$(RELEASE_NAME)-vault-ui 8200:8200 > /dev/null 2>&1 &
+	@kubectl port-forward -n $(NAMESPACE) svc/$(RELEASE_NAME)-opa 8181:8181 > /dev/null 2>&1 &
 	@sleep 2
 	@echo "  ✓ JobRunr:    http://localhost:8085"
 	@echo "  ✓ Kafka UI:   http://localhost:8088"
 	@echo "  ✓ Valkey UI:  http://localhost:5540"
 	@echo "  ✓ Vault UI:   http://localhost:8200"
+	@echo "  ✓ OPA:        http://localhost:8181"
 	@echo ""
 	@echo "Stop: make stop-port-forwards"
 

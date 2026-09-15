@@ -156,3 +156,7 @@ vault:
       auditStorage:
         enabled: true
         size: 1Gi
+
+# OPA — Local (KIND): single replica is enough for a functional smoke test
+opa:
+  replicaCount: 1

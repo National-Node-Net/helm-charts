@@ -1,4 +1,4 @@
-{{- if .Values.certificateManager.vaultToken.useSecret }}
+{{- if and .Values.certificateManager.enabled .Values.certificateManager.vaultToken.useSecret }}
 ---
 # Role: allows the cert-manager service account to check whether the vault-token
 # Secret exists. Used by the init container (wait-for-vault-token) which runs

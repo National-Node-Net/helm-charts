@@ -26,7 +26,12 @@ Components Deployed:
   ✓ Federator Server
   ✓ Federator Client
   ✓ HashiCorp Vault (HA Raft, KV v2)
+{{- if .Values.certificateManager.enabled }}
   ✓ Certificate Manager (headless scheduler)
+{{- end }}
+{{- if .Values.opa.enabled }}
+  ✓ OPA (Open Policy Agent) PDP — {{ include "federator-suite.opa.addr" . }}
+{{- end }}
 {{- if .Values.kafkaUi.enabled }}
   ✓ Kafka UI
 {{- end }}
@@ -183,6 +188,7 @@ helm upgrade {{ .Release.Name }} . -n {{ .Release.Namespace }} \\
   -f values/valkey.yaml \\
   -f values/vault.yaml \\
   -f values/certificate-manager.yaml \\
+  -f values/opa.yaml \\
   -f values/federator.yaml \\
   -f values/kafka-ui.yaml \\
   -f values/valkey-ui.yaml \\

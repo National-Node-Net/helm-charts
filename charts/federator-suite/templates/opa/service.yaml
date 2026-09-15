@@ -1,0 +1,23 @@
+{{- if .Values.opa.enabled }}
+---
+# ClusterIP Service fronting {{ include "federator-suite.opa.fullname" . }} 
+# No Istio annotations — the Deployment's pods opt out of sidecar injection.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "federator-suite.opa.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "federator-suite.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opa
+spec:
+  type: {{ .Values.opa.service.type | default "ClusterIP" }}
+  selector:
+    app: opa
+    {{ include "federator-suite.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.opa.service.port | default 8181 }}
+      targetPort: 8181
+      protocol: TCP
+{{- end }}
