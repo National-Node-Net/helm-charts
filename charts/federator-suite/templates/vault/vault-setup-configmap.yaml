@@ -96,8 +96,19 @@ data:
     VAULT_TOKEN=""
     INIT_RESP=""
     init_state="$(json_bool initialized "$(vault_get /v1/sys/init)")"
+    credentials_exist="false"
+
+    case "$CLOUD_PROVIDER" in
+      aws)
+        sm_json="$(aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRETS_MANAGER_SECRET_NAME" --query SecretString --output text 2>/dev/null || true)"
+        if [ -n "$sm_json" ] && [ "$sm_json" != "None" ] && [ -n "$(json_val root_token "$sm_json")" ]; then
+          credentials_exist="true"
+        fi
+        ;;
+    esac
 
     if [ "$init_state" != "true" ]; then
+      [ "$credentials_exist" = "true" ] && fail "Vault is uninitialized but ${SECRETS_MANAGER_SECRET_NAME} already exists; refusing to initialize a competing cluster"
       log "Vault not initialized. Running init."
       if [ "$CLOUD_PROVIDER" = "local" ]; then
         INIT_PAYLOAD="{\"secret_shares\":${KEY_SHARES},\"secret_threshold\":${KEY_THRESHOLD}}"
@@ -110,7 +121,11 @@ data:
 
       if [ "$CLOUD_PROVIDER" = "local" ]; then
         log "Local mode detected. Unsealing with generated keys."
-        keys_csv="$(json_array unseal_keys_b64 "$INIT_RESP")"
+        # Vault's real /v1/sys/init response field for Shamir key shares is "keys_base64"
+        # (there is no "unseal_keys_b64" field — using the wrong name here silently returns
+        # an empty array, so the unseal loop is skipped and the keys are lost forever once
+        # this process exits, permanently bricking the initialized-but-sealed Vault).
+        keys_csv="$(json_array keys_base64 "$INIT_RESP")"
         [ -z "$keys_csv" ] && fail "Unseal keys not found in init response"
         old_ifs="$IFS"
         IFS=,
@@ -133,8 +148,10 @@ data:
       fi
 
       log "Storing init credentials in secret backend (${CLOUD_PROVIDER})."
-      recovery_keys="$(json_array recovery_keys_b64 "$INIT_RESP")"
-      unseal_keys="$(json_array unseal_keys_b64 "$INIT_RESP")"
+      # Real Vault field names: "recovery_keys_base64" (recovery_shares/KMS auto-unseal path)
+      # and "keys_base64" (secret_shares/local Shamir path) — see comment above.
+      recovery_keys="$(json_array recovery_keys_base64 "$INIT_RESP")"
+      unseal_keys="$(json_array keys_base64 "$INIT_RESP")"
       secret_payload="{\"root_token\":\"${VAULT_TOKEN}\",\"recovery_keys_b64\":[${recovery_keys}],\"unseal_keys_b64\":[${unseal_keys}]}"
 
       case "$CLOUD_PROVIDER" in
@@ -168,8 +185,12 @@ data:
           aws secretsmanager put-secret-value \
             --region "$AWS_REGION" \
             --secret-id "$SECRETS_MANAGER_SECRET_NAME" \
-            --secret-string "$secret_payload" \
-            --version-stages AWSCURRENT >/dev/null
+            --secret-string "$secret_payload" >/dev/null \
+            || fail "Failed storing new Vault credentials in ${SECRETS_MANAGER_SECRET_NAME}"
+          stored_payload="$(aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRETS_MANAGER_SECRET_NAME" --query SecretString --output text 2>/dev/null || true)"
+          [ "$(json_val root_token "$stored_payload")" = "$VAULT_TOKEN" ] \
+            || fail "Vault credentials were not persisted to ${SECRETS_MANAGER_SECRET_NAME}"
+          log "Vault credentials stored in AWS Secrets Manager."
           ;;
         gcp)
           gcp_secret="$(printf '%s' "$SECRETS_MANAGER_SECRET_NAME" | awk -F/ '{print $NF}')"
@@ -189,6 +210,7 @@ data:
           ;;
       esac
     else
+      [ "$CLOUD_PROVIDER" = "aws" ] && [ "$credentials_exist" != "true" ] && fail "Vault is initialized but ${SECRETS_MANAGER_SECRET_NAME} is missing; refusing to continue without recovery credentials"
       log "Vault already initialized. Retrieving token from backend."
       case "$CLOUD_PROVIDER" in
         local)
@@ -196,12 +218,13 @@ data:
           kube_api="https://kubernetes.default.svc"
           ca_cert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
           secret_body="$(curl -s --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" "${kube_api}/api/v1/namespaces/${namespace}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
-          encoded_blob="$(printf '%s' "$secret_body" | grep -o '"vault-credentials":"[^"]*"' | head -1 | cut -d'"' -f4)"
+          # kube-apiserver pretty-prints JSON for non-k8s User-Agents (curl), i.e. `"key": "value"` with a space
+          encoded_blob="$(printf '%s' "$secret_body" | grep -o '"vault-credentials": *"[^"]*"' | head -1 | cut -d'"' -f4)"
           [ -z "$encoded_blob" ] && fail "vault-credentials missing in k8s secret ${SECRETS_MANAGER_SECRET_NAME}"
           sm_json="$(printf '%s' "$encoded_blob" | base64 -d 2>/dev/null || true)"
           ;;
         aws)
-          sm_json="$(aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRETS_MANAGER_SECRET_NAME" --query SecretString --output text 2>/dev/null || true)"
+          [ -n "${sm_json:-}" ] || sm_json="$(aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRETS_MANAGER_SECRET_NAME" --query SecretString --output text 2>/dev/null || true)"
           ;;
         gcp)
           gcp_secret="$(printf '%s' "$SECRETS_MANAGER_SECRET_NAME" | awk -F/ '{print $NF}')"
@@ -223,31 +246,43 @@ data:
 
       VAULT_TOKEN="$(json_val root_token "$sm_json")"
       [ -z "$VAULT_TOKEN" ] && fail "root_token not found in secret backend payload"
-    fi
 
-    log "Phase 3 - Joining Raft peers"
-    for i in 1 2; do
-      peer_addr="http://${sts_name}-${i}.${sts_name}-internal:8200"
-      log "Waiting for ${sts_name}-${i} to be reachable."
-      peer_n=0
-      until curl -s --connect-timeout 3 -o /dev/null "${peer_addr}/v1/sys/health" 2>/dev/null; do
-        peer_n=$((peer_n+1))
-        [ "$peer_n" -ge 30 ] && { log "WARNING: ${sts_name}-${i} not reachable after 150s. Skipping join."; break; }
-        sleep 5
-      done
-      if [ "$peer_n" -lt 30 ]; then
-        curl -s -X POST \
-          -H "Content-Type: application/json" \
-          -d "{\"leader_api_addr\":\"http://${sts_name}-0.${sts_name}-internal:8200\"}" \
-          "${peer_addr}/v1/sys/storage/raft/join" > /dev/null || true
-        log "Raft join request sent to ${sts_name}-${i}."
+      # Shamir-sealed local Vault always comes back up SEALED after any restart of the
+      # "vault" container (unseal state is in-memory only, never persisted) — re-unseal
+      # here using the keys captured at init time, or every operation below (mounts,
+      # policies, k8s auth) would fail against a sealed Vault. Cloud/KMS auto-unseal
+      # providers don't need this (Vault unseals itself once the KMS is reachable).
+      if [ "$(json_bool sealed "$(curl -s ${VAULT_ADDR}/v1/sys/seal-status 2>/dev/null)")" = "true" ]; then
+        if [ "$CLOUD_PROVIDER" = "local" ]; then
+          log "Vault is sealed. Re-unsealing with recovered keys."
+          keys_csv="$(json_array unseal_keys_b64 "$sm_json")"
+          [ -z "$keys_csv" ] && fail "Unseal keys not found in recovered secret backend payload"
+          old_ifs="$IFS"
+          IFS=,
+          for key_item in $keys_csv; do
+            key="$(printf '%s' "$key_item" | tr -d '" ' )"
+            [ -z "$key" ] && continue
+            vault_post /v1/sys/unseal "{\"key\":\"${key}\"}" > /dev/null
+            sealed="$(json_bool sealed "$(curl -s ${VAULT_ADDR}/v1/sys/seal-status 2>/dev/null)")"
+            [ "$sealed" = "false" ] && break
+          done
+          IFS="$old_ifs"
+        else
+          log "Waiting for KMS auto-unseal."
+          n=0
+          until [ "$(json_bool sealed "$(curl -s ${VAULT_ADDR}/v1/sys/seal-status 2>/dev/null)")" = "false" ]; do
+            n=$((n+1))
+            [ "$n" -ge 60 ] && fail "Vault still sealed after 300s"
+            sleep 5
+          done
+        fi
       fi
-    done
+    fi
 
     token_check="$(vault_get /v1/auth/token/lookup-self)"
     printf '%s' "$token_check" | grep -q '"id"' || fail "Root token validation failed"
 
-    log "Phase 4 - Configuring secrets engines and Kubernetes auth"
+    log "Phase 3 - Configuring secrets engines and Kubernetes auth"
     mounts="$(vault_get /v1/sys/mounts)"
     if ! printf '%s' "$mounts" | grep -q '"secret/"'; then
       vault_post /v1/sys/mounts/secret '{"type":"kv","options":{"version":"2"}}' >/dev/null

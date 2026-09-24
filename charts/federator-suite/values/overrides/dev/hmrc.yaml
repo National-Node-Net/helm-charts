@@ -346,6 +346,11 @@ certificateManager:
     cert:
       subjectOrg: "hmrc"
       subjectCountry: "GB"
+      # PLACEHOLDER: confirm real CN/SANs with the team before relying on issued certs from this
+      # org — required by the chart render (app defaults to a meaningless
+      # ACME-placeholder identity if these are left unset).
+      subjectCn: "hmrc-certificate-manager.dev.ndtp.co.uk"
+      subjectAltNames: "hmrc-certificate-manager.dev.ndtp.co.uk"
   persistence:
     # GKE only has GCE PD storage classes (standard-rwo, premium-rwo) which are RWO only.
     # ReadWriteMany requires Filestore/NFS. Use RWO — scheduler colocates all 3 pods that share

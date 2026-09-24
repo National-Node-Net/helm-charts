@@ -175,15 +175,83 @@ serviceMesh:
 managementNode:
   baseUrl: "https://ia-management-node.dev.ndtp.co.uk"
 
-# Vault - disable sidecar setup (HEG uses external secrets, not vault bootstrap)
+# Vault + Certificate Manager (Azure AKS)
 vault:
-  devMode: true
+  cloudProvider: azure
+  devMode: false
+  seal:
+    azure:
+      # PLACEHOLDER: replace with Terraform output for the HEG subscription.
+      tenantId: "PLACEHOLDER_HEG_AZURE_TENANT_ID"
+      vaultName: "PLACEHOLDER_HEG_AZURE_KEY_VAULT_NAME"
+      keyName: "PLACEHOLDER_HEG_AZURE_VAULT_UNSEAL_KEY_NAME"
+  serviceAccount:
+    annotations:
+      # PLACEHOLDER: Azure Workload Identity client ID with Key Vault permissions.
+      azure.workload.identity/client-id: "PLACEHOLDER_HEG_VAULT_MANAGED_IDENTITY_CLIENT_ID"
+  secretsManager:
+    # Azure Key Vault secret that stores the Vault root token and recovery keys.
+    secretName: "PLACEHOLDER_HEG_VAULT_CREDENTIAL_SECRET"
   setup:
-    enabled: false
+    enabled: true
+    cloudProvider: azure
+    image:
+      repository: mcr.microsoft.com/azure-cli
+      tag: "2.67.0"
+      pullPolicy: IfNotPresent
   vault:
     server:
-      extraContainers: []
-      volumes: []
+      # Required when Istio STRICT mTLS is enabled; Vault Raft traffic must not
+      # be intercepted by the mesh before Vault can initialise.
+      annotations:
+        traffic.sidecar.istio.io/excludeInboundPorts: "8200,8201"
+        traffic.sidecar.istio.io/excludeOutboundPorts: "8200,8201"
+      serviceAccount:
+        annotations:
+          azure.workload.identity/client-id: "PLACEHOLDER_HEG_VAULT_MANAGED_IDENTITY_CLIENT_ID"
+      ha:
+        raft:
+          config: |
+            ui = true
+
+            listener "tcp" {
+              tls_disable = 1
+              address     = "[::]:8200"
+              cluster_address = "[::]:8201"
+            }
+
+            storage "raft" {
+              path = "/vault/data"
+
+              retry_join {
+                leader_api_addr = "http://federator-suite-vault-0.federator-suite-vault-internal:8200"
+              }
+            }
+
+            seal "azurekeyvault" {
+              tenant_id  = "PLACEHOLDER_HEG_AZURE_TENANT_ID"
+              vault_name = "PLACEHOLDER_HEG_AZURE_KEY_VAULT_NAME"
+              key_name   = "PLACEHOLDER_HEG_AZURE_VAULT_UNSEAL_KEY_NAME"
+            }
+
+            service_registration "kubernetes" {}
+      extraContainers:
+        - name: vault-setup
+          image: "mcr.microsoft.com/azure-cli:2.67.0"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/scripts/vault-setup.sh"]
+          env:
+            - name: HOME
+              value: "/tmp"
+          volumeMounts:
+            - name: vault-setup-script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: vault-setup-script
+          configMap:
+            name: vault-setup-script
+            defaultMode: 0555
 
 # Certificate Manager - configured for AKS
 certificateManager:
@@ -196,5 +264,20 @@ certificateManager:
     # ReadWriteMany requires Azure Files. Use RWO — scheduler colocates all pods
     # that share this PVC (certificate-manager, federator-client, federator-server) on the same node.
     accessMode: ReadWriteOnce
+  config:
+    managementNode:
+      baseUrl: "https://ia-management-node.dev.ndtp.co.uk"
+    oauth2:
+      enabled: true
+      tokenUri: "https://ia-idp.dev.ndtp.co.uk/realms/mng-node/protocol/openid-connect/token"
+      clientId: "FEDERATOR_HEG"
+    cert:
+      subjectOrg: "heg"
+      subjectCountry: "GB"
+      # PLACEHOLDER: confirm real CN/SANs with the team before relying on issued certs from this
+      # org — required by the chart render (app defaults to a meaningless
+      # ACME-placeholder identity if these are left unset).
+      subjectCn: "heg-certificate-manager.dev.ndtp.co.uk"
+      subjectAltNames: "heg-certificate-manager.dev.ndtp.co.uk"
 
 # HEG-specific secrets (defined in secrets/heg-secrets.yaml)
