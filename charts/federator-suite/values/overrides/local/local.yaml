@@ -108,6 +108,18 @@ certificateManager:
       # Override default KUBERNETES → TOKEN for local Shamir-seal Vault
       # Corresponds to application.yml: authentication: ${VAULT_AUTHENTICATION:token}
       authentication: TOKEN
+    # OAuth2 / cert subject placeholders — required by the chart's `required` guards.
+    # Management Node isn't actually reachable from local KIND, so these values only need to
+    # be syntactically valid; cert-manager is expected to start, load Vault + mTLS config
+    # successfully, then fail/retry on the actual Management Node HTTP call.
+    oauth2:
+      tokenUri: "http://localhost:8082/realms/mng-node/protocol/openid-connect/token"
+      clientId: "MANAGEMENT_NODE_CLIENT"
+    cert:
+      subjectCn: "certificate-manager.local"
+      subjectAltNames: "certificate-manager.local,localhost"
+      subjectOrg: "NDTP Local Dev"
+      subjectCountry: "UK"
 
 # Management Node - Local
 managementNode:
@@ -120,6 +132,12 @@ vault:
 
   ha:
     replicas: 1
+
+  # Local Vault stores its root token and unseal key in this Kubernetes Secret.
+  # This overrides the shared cloud placeholder, which must be replaced by each
+  # cloud environment with its Terraform-managed external secret name.
+  secretsManager:
+    secretName: "vault-init-credentials"
 
   vault:
     server:

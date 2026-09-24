@@ -5,6 +5,8 @@ Helm chart for deploying Federator Suite to local KIND and cloud Kubernetes (EKS
 ## Index
 
 - [Quick Start](#quick-start)
+- [End-to-end dev sequence](#end-to-end-dev-sequence)
+- [TODOs for handover](#todos-for-handover)
 - [Directory Structure](#directory-structure)
 - [Configuration Switches](#configuration-switches)
 - [Values Precedence](#values-precedence)
@@ -31,6 +33,96 @@ make deploy ENV=dev ORG=bcc
 ```bash
 make upgrade ENV=dev ORG=bcc
 ```
+
+## End-to-end dev sequence
+
+Use this sequence when developing or testing the chart. Choose **one** target:
+
+- **Local KIND**: safe for chart and integration work on your machine. It creates or reuses the `federator-suite-kind-cluster` cluster.
+- **Cloud dev**: deploys to the Kubernetes context currently selected in `kubectl`. It does not create a cluster or namespace, so confirm the context before continuing.
+
+Replace `bcc` only when you are intentionally working on another organisation overlay.
+
+### 1. Prepare the target
+
+For local development, check the required tools and generate local mTLS material once (or again when the local certificate inputs change):
+
+```bash
+./scripts/check-prereqs.sh
+make generate-certs ORG=bcc
+```
+
+For cloud development, first confirm you are connected to the intended cluster and namespace:
+
+```bash
+kubectl config current-context
+make pre-deploy-check ENV=dev ORG=bcc
+```
+
+### 2. Validate before deploying
+
+Render and lint the chart using the same values that will be deployed:
+
+```bash
+make validate ENV=local ORG=bcc  # local KIND
+make validate ENV=dev ORG=bcc    # cloud dev
+```
+
+### 3. Deploy
+
+Use the full deploy command for a first install or after changing prerequisites. It builds chart dependencies, installs or upgrades the release, and waits for Kubernetes resources:
+
+```bash
+make deploy-local ORG=bcc        # local KIND
+make deploy ENV=dev ORG=bcc      # cloud dev
+```
+
+### 4. Check that it is healthy
+
+Run the health check, then inspect logs if it reports a problem:
+
+```bash
+make healthcheck ENV=local ORG=bcc  # local KIND
+make healthcheck ENV=dev ORG=bcc    # cloud dev
+make logs ENV=dev ORG=bcc            # recent logs from all components
+```
+
+For a local deployment, `make port-forward-all` exposes the JobRunr, Kafka, Valkey, Vault, and OPA interfaces on localhost. Stop them later with `make stop-port-forwards`.
+
+### 5. Make and test a change
+
+After changing templates or values, validate first, then use the faster upgrade command:
+
+```bash
+make validate ENV=dev ORG=bcc
+make upgrade ENV=dev ORG=bcc
+make healthcheck ENV=dev ORG=bcc
+```
+
+Use `ENV=local` in these commands when working in KIND. Use `make deploy` instead of `make upgrade` when you need its pre-deploy checks or dependency build.
+
+### 6. Clean up deliberately
+
+```bash
+make stop-port-forwards
+make uninstall ENV=local ORG=bcc  # removes the release and its PVCs
+make destroy-cluster              # local KIND only
+```
+
+`make uninstall` deletes the release **and its PVCs**. Do not run it against a cloud namespace unless deleting the deployed data is intentional.
+
+## TODOs for handover
+
+- [ ] Confirm the approved BCC certificate identity and certificate blobs in `values/overrides/dev/secrets/bcc-secrets.yaml`; keep the certificate-manager subject/SAN values in `values/overrides/dev/bcc.yaml` aligned with that identity before enabling issuance.
+- [ ] Complete the Management Node certificate-automation setup for BCC: enable organisation automation, seed the bootstrap certificate into the Federator Suite Vault, and confirm the renewal flow end to end.
+- [ ] Restrict the Keycloak `FEDERATOR_BCC` client certificate DN matcher and verify that its certificate-automation roles include `create_keys`, `sign_certificate`, and `access_public_certificates`.
+- [ ] Decide how certificate-manager output is delivered to federator-server/client; the applications load certificates at startup and require a rolling restart after rotation.
+- [ ] Provision HEG Azure infrastructure values with Terraform: tenant ID, Key Vault name, unseal key name, Workload Identity client ID, and the Vault credential secret name; replace all `PLACEHOLDER_HEG_*` values before deploying HEG.
+- [ ] Validate the HEG Azure setup sidecar image and permissions end to end, including Azure Key Vault access, Vault auto-unseal, Raft membership, Kubernetes auth, and certificate-manager access.
+- [ ] Deploy HMRC to the GKE context `dev-ndtp-gke` with `ENV=dev ORG=hmrc` and record the result in the deployment handover.
+- [ ] Validate HMRC GCP Vault auto-unseal using Cloud KMS (`development-486319`, `dev-fed-vault-keyring`, `dev-fed-vault-unseal-key`) and confirm all Vault replicas join one Raft cluster.
+- [ ] Validate the HMRC GCP Secret Manager path `projects/598715601744/secrets/dev-fed-vault-secrets`, including persistence and recovery of Vault credentials after a Vault pod restart.
+- [ ] Validate the GKE Kubernetes auth binding from the HMRC certificate-manager ServiceAccount to the Vault `certificate-manager` role, then confirm certificate-manager can read and write the `node-net` KV mount.
 
 ## Directory Structure
 
