@@ -31,9 +31,10 @@ certificateManager:
     managementNode:
       baseUrl: "http://ia-management-node.ia-management.svc.cluster.local:8080"
     oauth2:
-      # Disabled for local KIND — no real IdP accessible; cert-manager runs in passive mode
-      enabled: false
-      tokenUri: ""
+      # No real IdP reachable from local KIND — this is a syntactically-valid placeholder only
+      # (chart's `required` guard needs a non-empty value; app is expected to fail/retry calling
+      # it, which is fine for a local smoke test — see local.yaml's comment for the same pattern).
+      tokenUri: "http://localhost:8082/realms/mng-node/protocol/openid-connect/token"
       clientId: "FEDERATOR_HMRC"
     cert:
       subjectOrg: "hmrc"
