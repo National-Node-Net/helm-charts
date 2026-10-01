@@ -1,0 +1,27 @@
+{{- if .Values.serviceMesh.istio.enabled }}
+{{- if .Values.serviceMesh.istio.authorizationPolicy.denyByDefault }}
+
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: federator-allow-valkey
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "federator-suite.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: valkey
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - {{ .Release.Namespace }}
+      to:
+        - operation:
+            ports:
+              - "6379"
+
+{{- end }}
+{{- end }}

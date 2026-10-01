@@ -35,10 +35,8 @@ valkey:
     
     # Primary node configuration (used in standalone and replication)
     primary:
-      podAnnotations:
-        # Exclude Valkey port from Istio - internal replication needs direct TCP
-        traffic.sidecar.istio.io/excludeInboundPorts: "6379"
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"
+      # Keep port 6379 in the mesh so Istio can apply mTLS and AuthorizationPolicy.
+      podAnnotations: {}
       
       service:
         type: ClusterIP
@@ -60,10 +58,8 @@ valkey:
     # Replica configuration (for replication mode only)
     replica:
       replicaCount: 2  # 2 replicas for high availability
-      podAnnotations:
-        # Exclude Valkey port from Istio - internal replication needs direct TCP
-        traffic.sidecar.istio.io/excludeInboundPorts: "6379"
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"
+      # Keep port 6379 in the mesh so Istio can apply mTLS and AuthorizationPolicy.
+      podAnnotations: {}
       
       persistence:
         enabled: true

@@ -1,7 +1,7 @@
 {{- if .Values.opa.enabled }}
 ---
 # ClusterIP Service fronting {{ include "federator-suite.opa.fullname" . }} 
-# No Istio annotations — the Deployment's pods opt out of sidecar injection.
+# The Deployment joins the Istio mesh when serviceMesh.istio.enabled is true.
 apiVersion: v1
 kind: Service
 metadata:

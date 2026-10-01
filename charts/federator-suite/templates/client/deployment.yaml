@@ -24,9 +24,6 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/client-properties.yaml") . | sha256sum }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
-        {{- if .Values.serviceMesh.istio.enabled }}
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"
-        {{- end }}
         {{- with .Values.federatorClient.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

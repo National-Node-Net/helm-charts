@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -75,12 +75,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Install Helm
-        uses: azure/setup-helm@v5
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 #v5.0.1
         with:
           version: v3.10.0
             
@@ -104,8 +104,33 @@ jobs:
           echo "version=$version" >> $GITHUB_ENV
         shell: bash
 
-      - name: Helm Package
+      - name: Generate Default Values
+        shell: bash
         run: |
+          # Merge all values files into a single temporary values.yaml
+          # This is done so that Helm can use a single values file when packaging the chart 
+          # The resulting values.yaml will contain the merged (default) configuration from all specified files.
+          # It means the chart will install (wont work correctly) with the default configuration,
+          # and the user can always override values by providing their own values file.
+          
+          VALUESPATH="$CHART_DIR$PACKAGE_NAME/values"
+   
+          yq eval-all '. as $item ireduce ({}; . * $item )' \
+            $VALUESPATH/common-values.yaml \
+            $VALUESPATH/kafka.yaml \
+            $VALUESPATH/valkey.yaml \
+            $VALUESPATH/vault.yaml \
+            $VALUESPATH/certificate-manager.yaml \
+            $VALUESPATH/opa.yaml \
+            $VALUESPATH/federator.yaml \
+            $VALUESPATH/kafka-ui.yaml \
+            $VALUESPATH/valkey-ui.yaml \
+            $VALUESPATH/istio.yaml \
+            $VALUESPATH/overrides/local/local.yaml \
+            > $CHART_DIR$PACKAGE_NAME/values.yaml
+    
+      - name: Helm Package
+        run: |        
           echo "attempt to package with version ${{ env.version }}"
           helm package $CHART_DIR$PACKAGE_NAME --version ${{ env.version }}
 
