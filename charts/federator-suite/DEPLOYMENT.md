@@ -7,7 +7,7 @@
 make generate-certs ORG=org1              # 2. Generate mTLS certificates
 make deploy-local ORG=bcc                 # 3. Deploy (creates cluster + installs chart)
 make healthcheck ORG=bcc                  # 4. Verify pods, processes, logs
-make port-forward-all                     # 5. Access UIs (JobRunr :8085, Kafka :8088, Valkey :5540)
+make port-forward-all                     # 5. Access UIs (JobRunr :8085, Kafka :8088, Valkey :5540, OPA :8181)
 ```
 
 ## Cloud (EKS / AKS / GKE)

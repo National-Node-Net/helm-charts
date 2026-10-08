@@ -54,15 +54,19 @@ federator-suite/
 │   ├── secrets/                # Kubernetes Secret templates
 │   ├── vault/                  # Vault sidecar setup ConfigMap + supporting RBAC/SA
 │   ├── certificate-manager/    # Certificate manager deployment, PVC, secrets
+│   ├── opa/                    # OPA (Open Policy Agent) PDP — Deployment, Service, ConfigMap, SA
 │   ├── istio/                  # Optional Istio resources
 │   ├── kafka-ui/               # Kafka UI resources
 │   └── valkey-ui/              # Valkey UI resources
+├── files/
+│   └── opa-policies/            # Rego policy files loaded verbatim into the OPA ConfigMap
 ├── values/
 │   ├── common-values.yaml      # Global defaults
-│   ├── kafka.yaml              # Kafka defaults + external toggle
-│   ├── valkey.yaml             # Valkey defaults + external toggle
-│   ├── vault.yaml              # Vault defaults (HA Raft, auto-unseal, dev mode)
-│   ├── certificate-manager.yaml # Certificate manager defaults
+│   ├── kafka.yaml               # Kafka defaults + external toggle
+│   ├── valkey.yaml               # Valkey defaults + external toggle
+│   ├── vault.yaml                # Vault defaults (HA Raft, auto-unseal, dev mode)
+│   ├── certificate-manager.yaml  # Certificate manager defaults
+│   ├── opa.yaml                  # OPA PDP defaults (standalone Deployment, not a sidecar)
 │   ├── federator.yaml          # Server/client defaults
 │   ├── kafka-ui.yaml           # Kafka UI defaults
 │   ├── valkey-ui.yaml          # Valkey UI defaults
@@ -84,7 +88,8 @@ federator-suite/
 | `valkey.enabled` | `true` | Controls Valkey subchart. Set `false` when external |
 | `vault.cloudProvider` | (auto) | Cloud provider for auto-unseal. Auto-derived from `global.clusterType` (`eks`→`aws`, `aks`→`azure`, `gke`→`gcp`). Set explicitly to override. |
 | `vault.devMode` | `false` | Use in-memory Vault without KMS auto-unseal (for KIND/local development) |
-| `serviceMesh.istio.enabled` | `false` | Deploys Istio resources (Gateway, VirtualService, DestinationRule, PeerAuthentication, AuthorizationPolicy) |
+| `opa.enabled` | `true` | Deploys the OPA (Open Policy Agent) PDP as its own Deployment + ClusterIP Service (not a sidecar). No PEP wired up to it yet — infra ready for future policy integration. |
+| `serviceMesh.istio.enabled` | `false` | Deploys Istio resources (Gateway, VirtualService, DestinationRule, PeerAuthentication, AuthorizationPolicy). OPA always opts out of sidecar injection regardless of this switch. |
 | `kafkaUi.enabled` | `false` | Deploy Kafka UI |
 | `valkeyUi.enabled` | `false` | Deploy Valkey UI |
 
@@ -94,7 +99,7 @@ Each org override file (e.g. `dev/bcc.yaml`) is self-contained — cloud config,
 
 Helm applies files left to right; last file wins. Order used by the Makefile:
 
-1. `values/common-values.yaml` → `kafka.yaml` → `valkey.yaml` → `federator.yaml` → `kafka-ui.yaml` → `valkey-ui.yaml` → `istio.yaml`
+1. `values/common-values.yaml` → `kafka.yaml` → `valkey.yaml` → `vault.yaml` → `certificate-manager.yaml` → `opa.yaml` → `federator.yaml` → `kafka-ui.yaml` → `valkey-ui.yaml` → `istio.yaml`
 2. Environment override (`values/overrides/{env}/{org}.yaml`)
 3. Secrets file (`values/overrides/{env}/secrets/{org}-secrets.yaml`)
 4. CLI `--set` flags (highest priority)
@@ -126,9 +131,10 @@ Dependencies (Bitnami Kafka repo + local Valkey subchart) are built automaticall
 | **Logs** | |
 | `make logs-server` | Tail federator-server logs |
 | `make logs-client` | Tail federator-client logs |
+| `make logs-opa` | Tail OPA logs |
 | `make logs` | Last 50 lines from all pods |
 | **Port Forwarding** | |
-| `make port-forward-all` | Forward Kafka UI (8088), Valkey UI (5540), JobRunr (8085), Vault UI (8200) |
+| `make port-forward-all` | Forward Kafka UI (8088), Valkey UI (5540), JobRunr (8085), Vault UI (8200), OPA (8181) |
 | `make stop-port-forwards` | Kill all port forwards |
 | `make port-forward-status` | Show active port forwards |
 | **Istio** | |

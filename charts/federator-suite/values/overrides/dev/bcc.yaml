@@ -7,8 +7,7 @@ global:
   clusterType: eks
   orgName: bcc
   orgPrefix: bcc
-  namespace: ia-federation  # Namespace must already exist in EKS cluster. EVIDENCE: `federator-suite` Helm release confirmed in ia-federation (kubectl get secret -l owner=helm -n ia-federation)
-
+  namespace: ia-federation  # Namespace must already exist in EKS cluster. 
 # Kafka Configuration
 kafka:
   external: true
@@ -179,6 +178,14 @@ vault:
     secretName: "dev-ia-node-fed-vault-secrets"
   vault:
     server:
+      serviceAccount:
+        annotations:
+          eks.amazonaws.com/role-arn: "arn:aws:iam::537124944113:role/dev-ia-node-fed-vault-unseal-role"
+      # Required when serviceMesh.istio.enabled: Istio STRICT mTLS otherwise
+      # blocks the raft/unseal listener (NR filter_chain_not_found)
+      annotations:
+        traffic.sidecar.istio.io/excludeInboundPorts: "8200,8201"
+        traffic.sidecar.istio.io/excludeOutboundPorts: "8200,8201"
       ha:
         raft:
           config: |
@@ -202,6 +209,9 @@ vault:
             service_registration "kubernetes" {}
 
 certificateManager:
+  enabled: false  
+  persistence:
+    accessMode: ReadWriteOnce 
   image:
     repository: "537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/federator-certificate-manager"
     tag: "1.0.0"

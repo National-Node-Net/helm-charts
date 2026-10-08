@@ -1,0 +1,61 @@
+# ============================================================================
+# OPA (Open Policy Agent) Runtime Component Values
+# ============================================================================
+# Standalone PDP (Policy Decision Point) — own Deployment + ClusterIP Service,
+# ============================================================================
+
+opa:
+  enabled: true
+
+  replicaCount: 2 # stateless (reloads the same ConfigMap on every pod start) 
+
+  image:
+    repository: openpolicyagent/opa
+    tag: "1.20.0" 
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+
+  serviceAccount:
+    create: true
+    name: "" # Defaults to <release>-opa via helper
+    annotations: {}
+
+  podAnnotations: {}
+
+  podSecurityContext: {}
+
+  # OPA never writes to its own filesystem in this config (no bundle persistence, no disk cache)
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  service:
+    type: ClusterIP
+    port: 8181
+
+  nodeSelector: {}
+  tolerations: []
+  # Default: spread replicas across nodes where possible. A user-supplied
+  # override here replaces this map wholesale (Helm deep-merges nested keys
+  # not present in the override), so add to podAntiAffinity rather than
+  # introducing a second one at the template level.
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app: opa
+            topologyKey: "kubernetes.io/hostname"
