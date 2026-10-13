@@ -10,6 +10,7 @@ on:
       - develop
     paths:
     - 'charts/federator-suite/**'
+    - '.github/workflows/federator-suite.ci.yaml'
     - '!**.md'
 
   pull_request:
@@ -18,6 +19,7 @@ on:
       - develop
     paths:
     - 'charts/federator-suite/**'
+    - '.github/workflows/federator-suite.ci.yaml'
     - '!**.md'
 
 env:
