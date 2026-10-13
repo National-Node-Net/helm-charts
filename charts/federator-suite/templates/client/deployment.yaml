@@ -16,7 +16,6 @@ spec:
   revisionHistoryLimit: {{ .Values.federatorClient.revisionHistoryLimit | default 3 }}
   selector:
     matchLabels:
-      app: federator-client
       {{ include "federator-suite.selectorLabels" . | nindent 6 }}
   template:
     metadata:
@@ -28,7 +27,6 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        app: federator-client
         {{ include "federator-suite.client.labels" . | nindent 8 }}
         {{- if eq .Values.global.clusterType "aks" }}
         azure.workload.identity/use: "true"
