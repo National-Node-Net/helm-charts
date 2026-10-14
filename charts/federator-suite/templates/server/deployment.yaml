@@ -42,18 +42,17 @@ spec:
         {{- toYaml .Values.federatorServer.podSecurityContext | nindent 8 }}
       initContainers:
       - name: render-server-properties
-        image: alpine:3.20
+        image: tindtechnologies/alpine-envsubst:3.12.0
         imagePullPolicy: IfNotPresent
         command:
         - /bin/sh
         - -ec
         args:
         - |
-          apk add --no-cache gettext
           envsubst < /config-template/server.properties > /rendered-config/server.properties
         envFrom:
         - secretRef:
-            name: federator-runtime-secret
+            name: {{ .Values.federatorServer.runtimeSecret }}
         volumeMounts:
         - name: config-template-volume
           mountPath: /config-template
