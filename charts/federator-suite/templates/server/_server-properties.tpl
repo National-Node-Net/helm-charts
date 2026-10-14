@@ -1,0 +1,88 @@
+{{/*
+Server runtime properties. This is intentionally a named template so it can
+be rendered by the server properties ConfigMap without creating a standalone
+Kubernetes resource.
+*/}}
+{{- define "federator-suite.serverProperties" -}}
+# Kafka Configuration (Consumer)
+kafka.defaultKeyDeserializerClass=org.apache.kafka.common.serialization.StringDeserializer
+kafka.defaultValueDeserializerClass=uk.gov.dbt.ndtp.federator.access.AccessMessageDeserializer
+kafka.consumerGroup=server.consumer
+kafka.pollDuration=PT10S
+kafka.pollRecords=100
+
+# Shared Headers
+shared.headers=Security-Label^Content-Type
+filter.shareAll=false
+
+# Client Name
+client.name={{ .Values.federatorServer.config.clientName | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
+
+# Server Configuration
+server.port={{ .Values.federatorServer.config.serverPort }}
+server.keepAliveTime={{ .Values.federatorServer.config.keepAliveTime | default 10 }}
+
+# Kafka Bootstrap Servers
+kafka.bootstrapServers={{ include "federator-suite.kafka.bootstrapServers" . }}
+{{- if or .Values.kafka.external (and (not .Values.kafka.external) .Values.kafka.sasl) }}
+kafka.additional.security.protocol={{ include "federator-suite.kafka.securityProtocol" . }}
+kafka.additional.sasl.mechanism={{ include "federator-suite.kafka.saslMechanism" . }}
+kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
+{{- end }}
+
+# Server mTLS Configuration
+server.mtlsEnabled={{ .Values.federatorServer.config.mtlsEnabled | default true }}
+server.truststoreFilePath=/secrets/federation-cert/keycloak.truststore.jks
+server.truststorePassword=${TRUSTSTORE_PASSWORD}
+server.p12FilePath=/secrets/federation-server-p12/${SERVER_P12_FILENAME}
+server.p12Password=${SERVER_P12_PASSWORD}
+server.keystorePassword=${SERVER_KEYSTORE_PASSWORD}
+
+# Common Configuration
+common.configuration=/common-configuration/common-configuration.properties
+
+# JobRunr Configuration
+org.jobrunr.jobs.default-allow-concurrent-execution=false
+jobs.dashboard.port=8085
+jobs.dashboard.enabled=true
+
+# Management Node
+management.node.cache.ttl.seconds=60
+management.node.request.timeout=60
+management.node.base.url={{ .Values.global.managementNode.baseUrl }}
+
+# Redis/Valkey Configuration
+{{- $redisTlsEnabled := false -}}
+{{- if .Values.valkey.external }}
+{{- if kindIs "bool" .Values.valkey.external }}
+{{- $redisTlsEnabled = true }}
+{{- else if .Values.valkey.external.enabled }}
+{{- $redisTlsEnabled = true }}
+{{- end }}
+{{- else if and .Values.valkey.enabled .Values.valkey.valkey.primary.tls }}
+{{- $redisTlsEnabled = .Values.valkey.valkey.primary.tls.enabled }}
+{{- end }}
+redis.host={{ include "federator-suite.valkey.host" . }}
+redis.port={{ include "federator-suite.valkey.port" . }}
+redis.tls.enabled={{ ternary "true" "false" $redisTlsEnabled }}
+redis.prefix={{ .Values.federatorServer.config.redisPrefix | default (printf "federator-server-%s" (.Values.global.orgName | lower)) }}
+redis.username=${VALKEY_USERNAME}
+redis.password=${VALKEY_PASSWORD}
+
+# File Storage Configuration
+file.stream.chunk.size=1000
+{{- if eq (.Values.federatorServer.config.storage.provider | upper) "S3" }}
+files.storage.provider=S3
+files.s3.bucket={{ .Values.federatorServer.config.storage.s3.bucket }}
+aws.s3.region={{ .Values.federatorServer.config.storage.s3.region }}
+{{- else if eq (.Values.federatorServer.config.storage.provider | upper) "AZURE" }}
+files.storage.provider=AZURE
+azure.storage.connection.string={{ .Values.federatorServer.config.storage.azure.connectionString }}
+azure.storage.account.name={{ .Values.federatorServer.config.storage.azure.accountName }}
+azure.storage.endpoint={{ .Values.federatorServer.config.storage.azure.endpoint }}
+files.azure.container={{ .Values.federatorServer.config.storage.azure.container }}
+{{- else if eq (.Values.federatorServer.config.storage.provider | upper) "GCP" }}
+files.storage.provider=GCP
+files.gcp.bucket={{ .Values.federatorServer.config.storage.gcp.bucket }}
+{{- end }}
+{{- end }}

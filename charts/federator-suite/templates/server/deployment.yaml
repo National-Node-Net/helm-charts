@@ -40,6 +40,26 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.federatorServer.podSecurityContext | nindent 8 }}
+      initContainers:
+      - name: render-server-properties
+        image: alpine:3.20
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -ec
+        args:
+        - |
+          apk add --no-cache gettext
+          envsubst < /config-template/server.properties > /rendered-config/server.properties
+        envFrom:
+        - secretRef:
+            name: federator-runtime-secret
+        volumeMounts:
+        - name: config-template-volume
+          mountPath: /config-template
+          readOnly: true
+        - name: config-volume
+          mountPath: /rendered-config
       containers:
       - name: federator-server
         image: "{{ .Values.federatorServer.image.repository }}:{{ .Values.federatorServer.image.tag }}"
@@ -101,6 +121,8 @@ spec:
           {{- toYaml .Values.federatorServer.securityContext | nindent 10 }}
       volumes:
       - name: config-volume
+        emptyDir: {}
+      - name: config-template-volume
         configMap:
           name: federator-server-properties
       - name: kafka-auth-volume
@@ -111,10 +133,10 @@ spec:
           name: common-configuration
       - name: federation-cert
         secret:
-          secretName: {{ .Values.secrets.certificates.external.existingSecrets.federationCert | default "federation-cert" }}
+          secretName: federation-cert
       - name: federation-server-p12
         secret:
-          secretName: {{ .Values.secrets.certificates.external.existingSecrets.serverP12 | default "federation-server-p12" }}
+          secretName: federation-server-p12
       - name: cert-storage
         persistentVolumeClaim:
           claimName: {{ include "federator-suite.certStorage.claimName" . }}
