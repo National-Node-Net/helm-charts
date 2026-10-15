@@ -60,9 +60,9 @@ jobs:
 
       - name: Build Helm dependencies
         run: |
-          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/valkey
-          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/vault
-          helm dependency build $CHART_DIR$PACKAGE_NAME
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/vault
+          helm dependency update $CHART_DIR$PACKAGE_NAME
 
       - name: Helm lint
         working-directory: ${{ env.CHART_DIR }}${{ env.PACKAGE_NAME }}
@@ -104,9 +104,9 @@ jobs:
 
       - name: Build Helm dependencies
         run: |
-          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/valkey
-          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/vault
-          helm dependency build $CHART_DIR$PACKAGE_NAME
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/vault
+          helm dependency update $CHART_DIR$PACKAGE_NAME
 
       - name: Set Version
         run: |
@@ -142,9 +142,9 @@ jobs:
     
       - name: Helm Package
         run: |        
-          helm dependency build charts/federator-suite/charts/valkey
-          helm dependency build charts/federator-suite/charts/vault
-          helm dependency build charts/federator-suite
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/vault
+          helm dependency update $CHART_DIR$PACKAGE_NAME
 
           echo "attempt to package with version ${{ env.version }}"
           helm package $CHART_DIR$PACKAGE_NAME --version ${{ env.version }}
