@@ -44,3 +44,4 @@ overrides.yaml
 
 mongooverrides.yaml
 *.Zone.Identifier
+pat.txt
