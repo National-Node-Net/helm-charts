@@ -52,7 +52,7 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v3.10.0
+          version: v4.2.4
 
       - name: Add Helm repositories
         run: |
@@ -60,6 +60,8 @@ jobs:
 
       - name: Build Helm dependencies
         run: |
+          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/vault
           helm dependency build $CHART_DIR$PACKAGE_NAME
 
       - name: Helm lint
@@ -89,7 +91,7 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v3.10.0
+          version: v4.2.4
             
       - name: login to ghcr using helm
         shell: bash    
@@ -102,6 +104,8 @@ jobs:
 
       - name: Build Helm dependencies
         run: |
+          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency build $CHART_DIR$PACKAGE_NAME/charts/vault
           helm dependency build $CHART_DIR$PACKAGE_NAME
 
       - name: Set Version
