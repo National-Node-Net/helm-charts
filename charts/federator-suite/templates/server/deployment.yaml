@@ -50,6 +50,7 @@ spec:
         args:
         - |
           envsubst < /config-template/server.properties > /rendered-config/server.properties
+          : > /rendered-common-configuration/common-configuration.properties
         envFrom:
         - secretRef:
             name: {{ .Values.federatorServer.runtimeSecret }}
@@ -59,6 +60,8 @@ spec:
           readOnly: true
         - name: config-volume
           mountPath: /rendered-config
+        - name: common-configuration-volume
+          mountPath: /rendered-common-configuration
       containers:
       - name: federator-server
         image: "{{ .Values.federatorServer.image.repository }}:{{ .Values.federatorServer.image.tag }}"
@@ -128,8 +131,7 @@ spec:
         secret:
           secretName: kafka-auth-config
       - name: common-configuration-volume
-        configMap:
-          name: common-configuration
+        emptyDir: {}
       - name: federation-cert
         secret:
           secretName: federation-cert

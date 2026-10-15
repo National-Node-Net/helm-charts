@@ -9,6 +9,9 @@ metadata:
     {{ include "federator-suite.server.labels" . | nindent 4 }}
 data:
   server.properties: |-
+    # Common Configuration ( the app expects this file to be present - so we create an empty file .. its settings are in this file now )
+    common.configuration=/common-configuration/common-configuration.properties
+
     # Identity Provider (IDP) Configuration
     idp.client.id=${IDP_CLIENT_ID}
     idp.jwks.url=${IDP_JWKS_URL}
@@ -52,9 +55,6 @@ data:
     server.p12FilePath=/secrets/federation-server-p12/${SERVER_P12_FILENAME}
     server.p12Password=${SERVER_P12_PASSWORD}
     server.keystorePassword=${SERVER_KEYSTORE_PASSWORD}
-
-    # Common Configuration Commented out . not used
-    # common.configuration=/common-configuration/common-configuration.properties
 
     # JobRunr Configuration
     org.jobrunr.jobs.default-allow-concurrent-execution=false
