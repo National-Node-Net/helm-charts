@@ -154,6 +154,8 @@ federatorServer:
 
 federatorClient:
   enabled: true
+  # Existing Secret used to render client runtime properties at pod startup.
+  runtimeSecret: federation-client-runtime
   
   image:
     repository: federator-client
