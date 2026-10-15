@@ -21,6 +21,7 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/server-properties.yaml") . | sha256sum }}
+        checksum/common-configuration: {{ include (print $.Template.BasePath "/configmaps/common-configuration.yaml") . | sha256sum }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.federatorServer.podAnnotations }}
@@ -49,17 +50,20 @@ spec:
         - -ec
         args:
         - |
-          envsubst < /config-template/server.properties > /rendered-config/server.properties
-          : > /rendered-common-configuration/common-configuration.properties
+          envsubst < /server-properties-tmpl/server.properties > /rendered-config/server.properties
+          envsubst < /common-configuration-tmpl/common-configuration.properties > /rendered-common-configuration/common-configuration.properties
         envFrom:
         - secretRef:
             name: {{ .Values.federatorServer.runtimeSecret }}
         volumeMounts:
-        - name: config-template-volume
-          mountPath: /config-template
+        - name: server-properties-tmpl-volume
+          mountPath: /server-properties-tmpl
           readOnly: true
-        - name: config-volume
+        - name: server-properties-volume
           mountPath: /rendered-config
+        - name: common-configuration-tmpl-volume
+          mountPath: /common-configuration-tmpl
+          readOnly: true
         - name: common-configuration-volume
           mountPath: /rendered-common-configuration
       containers:
@@ -104,7 +108,7 @@ spec:
         resources:
           {{- toYaml .Values.federatorServer.resources | nindent 10 }}
         volumeMounts:
-        - name: config-volume
+        - name: server-properties-volume
           mountPath: /config
         - name: common-configuration-volume
           mountPath: /common-configuration
@@ -122,9 +126,9 @@ spec:
         securityContext:
           {{- toYaml .Values.federatorServer.securityContext | nindent 10 }}
       volumes:
-      - name: config-volume
+      - name: server-properties-volume
         emptyDir: {}
-      - name: config-template-volume
+      - name: server-properties-tmpl-volume
         configMap:
           name: federator-server-properties
       - name: kafka-auth-volume
@@ -132,6 +136,9 @@ spec:
           secretName: kafka-auth-config
       - name: common-configuration-volume
         emptyDir: {}
+      - name: common-configuration-tmpl-volume
+        configMap:
+          name: common-configuration
       - name: federation-cert
         secret:
           secretName: federation-cert
