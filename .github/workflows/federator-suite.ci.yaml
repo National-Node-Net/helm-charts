@@ -96,7 +96,7 @@ jobs:
       - name: login to ghcr using helm
         shell: bash    
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login $REGISTRY --username ndtp --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ndtp --password-stdin
 
       - name: Add Helm repositories
         run: |
