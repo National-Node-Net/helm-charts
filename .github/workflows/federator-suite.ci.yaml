@@ -138,6 +138,10 @@ jobs:
     
       - name: Helm Package
         run: |        
+          helm dependency build charts/federator-suite/charts/valkey
+          helm dependency build charts/federator-suite/charts/vault
+          helm dependency build charts/federator-suite
+
           echo "attempt to package with version ${{ env.version }}"
           helm package $CHART_DIR$PACKAGE_NAME --version ${{ env.version }}
 
