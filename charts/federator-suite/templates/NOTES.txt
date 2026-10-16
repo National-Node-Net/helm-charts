@@ -30,7 +30,7 @@ Components Deployed:
   ✓ Certificate Manager (headless scheduler)
 {{- end }}
 {{- if .Values.opa.enabled }}
-  ✓ OPA (Open Policy Agent) PDP — {{ include "federator-suite.opa.addr" . }}
+  ✓ OPA (Open Policy Agent)
 {{- end }}
 {{- if .Values.kafkaUi.enabled }}
   ✓ Kafka UI

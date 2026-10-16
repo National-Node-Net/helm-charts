@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "federator-suite.opa.fullname" . }}
+  name: opa
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.labels" . | nindent 4 }}
@@ -27,7 +27,7 @@ spec:
         {{ include "federator-suite.labels" . | nindent 8 }}
         app.kubernetes.io/component: opa
     spec:
-      serviceAccountName: {{ include "federator-suite.opa.serviceAccountName" . }}
+      serviceAccountName: {{ include "opa.serviceAccountName" . }}
       automountServiceAccountToken: false
       restartPolicy: Always
       {{- with .Values.opa.imagePullSecrets }}
@@ -96,5 +96,5 @@ spec:
       volumes:
         - name: opa-policies
           configMap:
-            name: {{ include "federator-suite.opa.fullname" . }}-policies
+            name: opa-policies
 {{- end }}
