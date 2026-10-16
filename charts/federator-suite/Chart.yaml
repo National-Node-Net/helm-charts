@@ -2,7 +2,7 @@ apiVersion: v2
 name: federator-suite
 description: Helm chart for Federator application suite (client, server, kafka, valkey, vault, certificate-manager, UIs)
 type: application
-version: 0.2.0
+version: 0.2.1
 appVersion: "0.4.1"
 home: https://github.com/national-node-net/helm-charts
 maintainers:

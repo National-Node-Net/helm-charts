@@ -279,6 +279,12 @@ data:
 
     vault_post /v1/auth/kubernetes/role/certificate-manager "{\"bound_service_account_names\":[\"${cert_manager_sa}\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"certificate-manager\"],\"ttl\":\"1h\"}" >/dev/null
 
+{{- if .Values.vault.staticSecrets.enabled }}
+    static_secrets_policy='path \"secret/data/apps/client-server\" { capabilities = [\"read\"] } path \"secret/metadata/apps/client-server\" { capabilities = [\"read\", \"list\"] }'
+    vault_post /v1/sys/policies/acl/federator-suite-client-server-vault-reader '{"policy":"'"${static_secrets_policy}"'"}' >/dev/null
+    vault_post /v1/auth/kubernetes/role/federator-suite-client-server-vault-reader "{\"bound_service_account_names\":[\"federator-suite-client-server-vault-auth\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"federator-suite-client-server-vault-reader\"],\"ttl\":\"1h\"}" >/dev/null
+{{- end }}
+
     log "Vault setup complete."
     park_idle
 {{- end }}
