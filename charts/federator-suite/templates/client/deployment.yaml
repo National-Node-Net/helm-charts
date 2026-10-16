@@ -54,7 +54,7 @@ spec:
           envsubst < /common-configuration-tmpl/common-configuration.properties > /rendered-common-configuration/common-configuration.properties
         envFrom:
         - secretRef:
-            name: {{ .Values.federatorClient.runtimeSecret }}
+            name: {{ .Values.federatorClient.runtimeSecret | default "federator-runtime-properties" }}
         volumeMounts:
         - name: client-properties-tmpl-volume
           mountPath: /client-properties-tmpl
