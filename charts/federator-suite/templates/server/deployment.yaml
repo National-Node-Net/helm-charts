@@ -16,22 +16,18 @@ spec:
   revisionHistoryLimit: {{ .Values.federatorServer.revisionHistoryLimit | default 3 }}
   selector:
     matchLabels:
-      app: federator-server
       {{ include "federator-suite.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/server-properties.yaml") . | sha256sum }}
+        checksum/common-configuration: {{ include (print $.Template.BasePath "/configmaps/common-configuration.yaml") . | sha256sum }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
-        {{- if .Values.serviceMesh.istio.enabled }}
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"
-        {{- end }}
         {{- with .Values.federatorServer.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        app: federator-server
         {{ include "federator-suite.server.labels" . | nindent 8 }}
         {{- if eq .Values.global.clusterType "aks" }}
         azure.workload.identity/use: "true"
@@ -45,6 +41,31 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.federatorServer.podSecurityContext | nindent 8 }}
+      initContainers:
+      - name: render-server-properties
+        image: tindtechnologies/alpine-envsubst:3.12.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -ec
+        args:
+        - |
+          envsubst < /server-properties-tmpl/server.properties > /rendered-config/server.properties
+          envsubst < /common-configuration-tmpl/common-configuration.properties > /rendered-common-configuration/common-configuration.properties
+        envFrom:
+        - secretRef:
+            name: {{ .Values.federatorServer.runtimeSecret | default "federator-runtime-properties" }}
+        volumeMounts:
+        - name: server-properties-tmpl-volume
+          mountPath: /server-properties-tmpl
+          readOnly: true
+        - name: server-properties-volume
+          mountPath: /rendered-config
+        - name: common-configuration-tmpl-volume
+          mountPath: /common-configuration-tmpl
+          readOnly: true
+        - name: common-configuration-volume
+          mountPath: /rendered-common-configuration
       containers:
       - name: federator-server
         image: "{{ .Values.federatorServer.image.repository }}:{{ .Values.federatorServer.image.tag }}"
@@ -87,7 +108,7 @@ spec:
         resources:
           {{- toYaml .Values.federatorServer.resources | nindent 10 }}
         volumeMounts:
-        - name: config-volume
+        - name: server-properties-volume
           mountPath: /config
         - name: common-configuration-volume
           mountPath: /common-configuration
@@ -105,21 +126,25 @@ spec:
         securityContext:
           {{- toYaml .Values.federatorServer.securityContext | nindent 10 }}
       volumes:
-      - name: config-volume
+      - name: server-properties-volume
+        emptyDir: {}
+      - name: server-properties-tmpl-volume
         configMap:
           name: federator-server-properties
       - name: kafka-auth-volume
         secret:
           secretName: kafka-auth-config
       - name: common-configuration-volume
+        emptyDir: {}
+      - name: common-configuration-tmpl-volume
         configMap:
           name: common-configuration
       - name: federation-cert
         secret:
-          secretName: {{ .Values.secrets.certificates.external.existingSecrets.federationCert | default "federation-cert" }}
+          secretName: federation-cert
       - name: federation-server-p12
         secret:
-          secretName: {{ .Values.secrets.certificates.external.existingSecrets.serverP12 | default "federation-server-p12" }}
+          secretName: federation-server-p12
       - name: cert-storage
         persistentVolumeClaim:
           claimName: {{ include "federator-suite.certStorage.claimName" . }}

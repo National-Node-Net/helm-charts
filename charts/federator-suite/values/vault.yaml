@@ -167,3 +167,9 @@ vault:
       pullPolicy: IfNotPresent
     keyShares: 5
     keyThreshold: 3
+
+  # Creates the federator client/server Kubernetes Secrets from Vault via VSO.
+  # However you need to populate the Vault path manually after Vault is running.
+  # the default path is /apps/client-server
+  staticSecrets:
+    enabled: false
