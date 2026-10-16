@@ -110,7 +110,7 @@ data:
 
       if [ "$CLOUD_PROVIDER" = "local" ]; then
         log "Local mode detected. Unsealing with generated keys."
-        keys_csv="$(json_array unseal_keys_b64 "$INIT_RESP")"
+        keys_csv="$(json_array keys_base64 "$INIT_RESP")"
         [ -z "$keys_csv" ] && fail "Unseal keys not found in init response"
         old_ifs="$IFS"
         IFS=,
@@ -133,8 +133,8 @@ data:
       fi
 
       log "Storing init credentials in secret backend (${CLOUD_PROVIDER})."
-      recovery_keys="$(json_array recovery_keys_b64 "$INIT_RESP")"
-      unseal_keys="$(json_array unseal_keys_b64 "$INIT_RESP")"
+      recovery_keys="$(json_array recovery_keys_base64 "$INIT_RESP")"
+      unseal_keys="$(json_array keys_base64 "$INIT_RESP")"
       secret_payload="{\"root_token\":\"${VAULT_TOKEN}\",\"recovery_keys_b64\":[${recovery_keys}],\"unseal_keys_b64\":[${unseal_keys}]}"
 
       case "$CLOUD_PROVIDER" in
