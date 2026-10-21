@@ -55,14 +55,8 @@ spec:
         env:
         - name: FEDERATOR_CLIENT_PROPERTIES
           value: /config/client.properties
-        - name: IDP_KEYSTORE_PATH
-          value: /secrets/federation-cert/client-org1-keystore.jks
-        - name: IDP_TRUSTSTORE_PATH
-          value: /secrets/federation-cert/keycloak.truststore.jks
-        - name: CLIENT_P12_FILE_PATH
-          value: /secrets/federation-client-p12/client-org1.p12
-        - name: CLIENT_TRUSTSTORE_FILE_PATH
-          value: /secrets/federation-cert/keycloak.truststore.jks
+        # the app doesnt read any env-vars directly - all the env vars we have are injected via the runtime secret
+        # and used via envsubst to update the configuration files in /config      
         envFrom:
         - secretRef:
             name: {{ .Values.federatorClient.runtimeSecret | default "federator-runtime-properties" }}
