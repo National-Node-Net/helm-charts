@@ -154,7 +154,7 @@ federatorServer:
 
 federatorClient:
   enabled: true
-  # Existing Secret used to render client runtime properties at pod startup.
+  # Existing Secret providing runtime variables for client properties.
   runtimeSecret: federator-runtime-properties
   
   image:
@@ -280,22 +280,22 @@ federatorClient:
     CLIENT_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
   
   # Volume mounts (automatically configured from values)
-  volumeMounts:
-    - name: config-volume
-      mountPath: /config
-      readOnly: true
-    - name: common-configuration-volume
-      mountPath: /common-configuration
-      readOnly: true
-    - name: client-connections
-      mountPath: /client-connections
-      readOnly: true
-    - name: kafka-auth-config
-      mountPath: /app/config/kafka-auth/
-      readOnly: true
-    - name: federation-cert
-      mountPath: /secrets/federation-cert
-      readOnly: true
-    - name: federation-client-p12
-      mountPath: /secrets/federation-client-p12
-      readOnly: true
+  # volumeMounts:
+  #   - name: config-volume
+  #     mountPath: /config/template
+  #     readOnly: true
+  #   - name: common-configuration-volume
+  #     mountPath: /common-configuration
+  #     readOnly: true
+  #   - name: client-connections
+  #     mountPath: /client-connections
+  #     readOnly: true
+  #   - name: kafka-auth-config
+  #     mountPath: /app/config/kafka-auth/
+  #     readOnly: true
+  #   - name: federation-cert
+  #     mountPath: /secrets/federation-cert
+  #     readOnly: true
+  #   - name: federation-client-p12
+  #     mountPath: /secrets/federation-client-p12
+  #     readOnly: true
