@@ -54,7 +54,7 @@ spec:
           protocol: TCP
         env:
         - name: FEDERATOR_SERVER_PROPERTIES
-          value: /config/server
+          value: /config/server.properties
         # the app doesnt read any env-vars directly - all the env vars we have are injected via the runtime secret
         # and used via envsubst to update the configuration files in /config
         envFrom:
