@@ -88,11 +88,11 @@ spec:
         - name: config-volume
           mountPath: /config
         - name: server-properties-volume
-          mountPath: /config-template/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
+          mountPath: /config-templates/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
           subPath: server.properties
           readOnly: true
         - name: common-configuration-volume
-          mountPath: /config-template/common-configuration.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
+          mountPath: /config-templates/common-configuration.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
           subPath: common-configuration.properties
           readOnly: true
         - name: federation-cert
