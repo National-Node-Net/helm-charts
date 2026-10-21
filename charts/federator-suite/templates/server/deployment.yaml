@@ -55,14 +55,14 @@ spec:
         env:
         - name: FEDERATOR_SERVER_PROPERTIES
           value: /config/server.properties
-        - name: IDP_TRUSTSTORE_PATH
-          value: /secrets/federation-cert/keycloak.truststore.jks
-        - name: IDP_KEYSTORE_PATH
-          value: /secrets/federation-cert/ndtp-keystore.jks
-        - name: SERVER_P12_FILE_PATH
-          value: /secrets/federation-server-p12/dev-ndtp.p12
-        - name: SERVER_TRUSTSTORE_FILE_PATH
-          value: /secrets/federation-cert/keycloak.truststore.jks
+        # - name: IDP_TRUSTSTORE_PATH
+        #   value: /secrets/federation-cert/keycloak.truststore.jks
+        # - name: IDP_KEYSTORE_PATH
+        #   value: /secrets/federation-cert/ndtp-keystore.jks
+        # - name: SERVER_P12_FILE_PATH
+        #   value: /secrets/federation-server-p12/dev-ndtp.p12
+        # - name: SERVER_TRUSTSTORE_FILE_PATH
+        #   value: /secrets/federation-cert/keycloak.truststore.jks
         envFrom:
         - secretRef:
             name: {{ .Values.federatorServer.runtimeSecret | default "federator-runtime-properties" }}
