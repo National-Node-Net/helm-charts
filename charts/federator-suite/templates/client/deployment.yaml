@@ -53,6 +53,8 @@ spec:
           containerPort: {{ .Values.federatorClient.config.jobsDashboardPort }}
           protocol: TCP
         env:
+        - name: FEDERATOR_CLIENT_PROPERTIES
+          value: /config/client.properties
         - name: IDP_KEYSTORE_PATH
           value: /secrets/federation-cert/client-org1-keystore.jks
         - name: IDP_TRUSTSTORE_PATH
@@ -62,8 +64,6 @@ spec:
         - name: CLIENT_TRUSTSTORE_FILE_PATH
           value: /secrets/federation-cert/keycloak.truststore.jks
         envFrom:
-        - configMapRef:
-            name: federator-client-config
         - secretRef:
             name: {{ .Values.federatorClient.runtimeSecret | default "federator-runtime-properties" }}
         # HTTP probes use the JobRunr dashboard endpoint.

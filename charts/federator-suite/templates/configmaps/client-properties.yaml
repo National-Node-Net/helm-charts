@@ -45,7 +45,7 @@ data:
     redis.aes.key=
 
     # Common Configuration
-    common.configuration=/common-configuration/common-configuration.properties
+    common.configuration=/config/common-configuration.properties
 
     # JobRunr Configuration
     org.jobrunr.jobs.default-allow-concurrent-execution=false

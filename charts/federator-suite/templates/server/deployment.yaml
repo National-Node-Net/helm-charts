@@ -41,31 +41,6 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.federatorServer.podSecurityContext | nindent 8 }}
-      initContainers:
-      - name: render-server-properties
-        image: tindtechnologies/alpine-envsubst:3.12.0
-        imagePullPolicy: IfNotPresent
-        command:
-        - /bin/sh
-        - -ec
-        args:
-        - |
-          envsubst < /server-properties-tmpl/server.properties > /rendered-config/server.properties
-          envsubst < /common-configuration-tmpl/common-configuration.properties > /rendered-common-configuration/common-configuration.properties
-        envFrom:
-        - secretRef:
-            name: {{ .Values.federatorServer.runtimeSecret | default "federator-runtime-properties" }}
-        volumeMounts:
-        - name: server-properties-tmpl-volume
-          mountPath: /server-properties-tmpl
-          readOnly: true
-        - name: server-properties-volume
-          mountPath: /rendered-config
-        - name: common-configuration-tmpl-volume
-          mountPath: /common-configuration-tmpl
-          readOnly: true
-        - name: common-configuration-volume
-          mountPath: /rendered-common-configuration
       containers:
       - name: federator-server
         image: "{{ .Values.federatorServer.image.repository }}:{{ .Values.federatorServer.image.tag }}"
@@ -78,6 +53,8 @@ spec:
           containerPort: {{ .Values.federatorServer.config.jobsDashboardPort }}
           protocol: TCP
         env:
+        - name: FEDERATOR_SERVER_PROPERTIES
+          value: /config/server.properties
         - name: IDP_TRUSTSTORE_PATH
           value: /secrets/federation-cert/keycloak.truststore.jks
         - name: IDP_KEYSTORE_PATH
@@ -87,8 +64,8 @@ spec:
         - name: SERVER_TRUSTSTORE_FILE_PATH
           value: /secrets/federation-cert/keycloak.truststore.jks
         envFrom:
-        - configMapRef:
-            name: federator-server-config
+        - secretRef:
+            name: {{ .Values.federatorServer.runtimeSecret | default "federator-runtime-properties" }}
         # TCP socket probes verify that the server process is listening on the app port.
         # This is used because the server exposes gRPC rather than a simple HTTP health endpoint.
         livenessProbe:
@@ -109,9 +86,13 @@ spec:
           {{- toYaml .Values.federatorServer.resources | nindent 10 }}
         volumeMounts:
         - name: server-properties-volume
-          mountPath: /config
+          mountPath: /config-template/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
+          subPath: server.properties
+          readOnly: true
         - name: common-configuration-volume
-          mountPath: /common-configuration
+          mountPath: /config-template/common-configuration.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
+          subPath: common-configuration.properties
+          readOnly: true
         - name: federation-cert
           mountPath: /secrets/federation-cert
           readOnly: true
@@ -124,16 +105,12 @@ spec:
           {{- toYaml .Values.federatorServer.securityContext | nindent 10 }}
       volumes:
       - name: server-properties-volume
-        emptyDir: {}
-      - name: server-properties-tmpl-volume
         configMap:
           name: federator-server-properties
       - name: kafka-auth-volume
         secret:
           secretName: kafka-auth-config
       - name: common-configuration-volume
-        emptyDir: {}
-      - name: common-configuration-tmpl-volume
         configMap:
           name: common-configuration
       - name: federation-cert
