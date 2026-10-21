@@ -87,6 +87,8 @@ spec:
         resources:
           {{- toYaml .Values.federatorClient.resources | nindent 10 }}
         volumeMounts:
+        - name: config-volume
+          mountPath: /config
         - name: client-properties-volume
           mountPath: /config-templates/client.properties # if a config appears here, the entrypoint in the client will transform and copy to /config
           subPath: client.properties
@@ -106,6 +108,8 @@ spec:
         securityContext:
           {{- toYaml .Values.federatorClient.securityContext | nindent 10 }}
       volumes:
+      - name: config-volume
+        emptyDir: {}
       - name: client-properties-volume
         configMap:
           name: federator-client-properties
