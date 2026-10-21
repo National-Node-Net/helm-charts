@@ -10,7 +10,7 @@ metadata:
 data:
   server.properties: |-
     # Common Configuration
-    common.configuration=/common-configuration/common-configuration.properties
+    common.configuration=/config/common-configuration.properties
 
     # Kafka Configuration (Consumer)
     kafka.defaultKeyDeserializerClass=org.apache.kafka.common.serialization.StringDeserializer
