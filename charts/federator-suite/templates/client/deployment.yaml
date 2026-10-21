@@ -88,11 +88,11 @@ spec:
           {{- toYaml .Values.federatorClient.resources | nindent 10 }}
         volumeMounts:
         - name: client-properties-volume
-          mountPath: /config-template/client.properties
+          mountPath: /config-templates/client.properties # if a config appears here, the entrypoint in the client will transform and copy to /config
           subPath: client.properties
           readOnly: true
         - name: common-configuration-volume
-          mountPath: /config-template/common-configuration.properties
+          mountPath: /config-templates/common-configuration.properties # if a config appears here, the entrypoint in the client will transform and copy to /config
           subPath: common-configuration.properties
           readOnly: true
         - name: federation-cert
