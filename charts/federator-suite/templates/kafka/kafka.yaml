@@ -53,6 +53,9 @@ spec:
       default.replication.factor: 1
       min.insync.replicas: 1
     {{- end }}
+  # The User Operator reconciles KafkaUser resources and creates SCRAM Secrets.
+  entityOperator:
+    userOperator: {}
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaUser
