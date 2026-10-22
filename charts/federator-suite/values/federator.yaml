@@ -2,6 +2,8 @@
 
 federatorServer:
   enabled: true
+  # Existing Secret used to render server.properties at pod startup.
+  runtimeSecret: federator-runtime-properties
   
   image:
     repository: federator-server
@@ -128,30 +130,12 @@ federatorServer:
     IDP_KEYSTORE_PATH: /secrets/federation-cert/ndtp-keystore.jks
     SERVER_P12_FILE_PATH: /secrets/federation-server-p12/dev-ndtp.p12
     SERVER_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
-  
-  # Volume mounts (automatically configured from values)
-  volumeMounts:
-    - name: config-volume
-      mountPath: /config
-      readOnly: true
-    - name: common-configuration-volume
-      mountPath: /common-configuration
-      readOnly: true
-    - name: access-map-volume
-      mountPath: /access-map
-      readOnly: true
-    - name: kafka-auth-config
-      mountPath: /app/config/kafka-auth/
-      readOnly: true
-    - name: federation-cert
-      mountPath: /secrets/federation-cert
-      readOnly: true
-    - name: federation-server-p12
-      mountPath: /secrets/federation-server-p12
-      readOnly: true
+    
 
 federatorClient:
   enabled: true
+  # Existing Secret providing runtime variables for client properties.
+  runtimeSecret: federator-runtime-properties
   
   image:
     repository: federator-client
@@ -275,23 +259,3 @@ federatorClient:
     CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
     CLIENT_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
   
-  # Volume mounts (automatically configured from values)
-  volumeMounts:
-    - name: config-volume
-      mountPath: /config
-      readOnly: true
-    - name: common-configuration-volume
-      mountPath: /common-configuration
-      readOnly: true
-    - name: client-connections
-      mountPath: /client-connections
-      readOnly: true
-    - name: kafka-auth-config
-      mountPath: /app/config/kafka-auth/
-      readOnly: true
-    - name: federation-cert
-      mountPath: /secrets/federation-cert
-      readOnly: true
-    - name: federation-client-p12
-      mountPath: /secrets/federation-client-p12
-      readOnly: true

@@ -10,6 +10,7 @@ on:
       - develop
     paths:
     - 'charts/federator-suite/**'
+    - '.github/workflows/federator-suite.ci.yaml'
     - '!**.md'
 
   pull_request:
@@ -18,6 +19,7 @@ on:
       - develop
     paths:
     - 'charts/federator-suite/**'
+    - '.github/workflows/federator-suite.ci.yaml'
     - '!**.md'
 
 env:
@@ -50,7 +52,7 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v3.10.0
+          version: v4.2.4
 
       - name: Add Helm repositories
         run: |
@@ -58,7 +60,9 @@ jobs:
 
       - name: Build Helm dependencies
         run: |
-          helm dependency build $CHART_DIR$PACKAGE_NAME
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/vault
+          helm dependency update $CHART_DIR$PACKAGE_NAME
 
       - name: Helm lint
         working-directory: ${{ env.CHART_DIR }}${{ env.PACKAGE_NAME }}
@@ -68,7 +72,12 @@ jobs:
   release:
     name: Release
     needs: check
-    if: ${{ github.event_name != 'pull_request' }}
+    if: >-
+      ${{
+        github.event_name != 'pull_request' ||
+        (github.base_ref == 'develop' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      }}
     permissions:
       contents: write
       packages: write
@@ -82,12 +91,12 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v3.10.0
+          version: v4.2.4
             
       - name: login to ghcr using helm
         shell: bash    
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login $REGISTRY --username ndtp --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ndtp --password-stdin
 
       - name: Add Helm repositories
         run: |
@@ -95,7 +104,9 @@ jobs:
 
       - name: Build Helm dependencies
         run: |
-          helm dependency build $CHART_DIR$PACKAGE_NAME
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/vault
+          helm dependency update $CHART_DIR$PACKAGE_NAME
 
       - name: Set Version
         run: |
@@ -104,8 +115,37 @@ jobs:
           echo "version=$version" >> $GITHUB_ENV
         shell: bash
 
-      - name: Helm Package
+      - name: Generate Default Values
+        shell: bash
         run: |
+          # Merge all values files into a single temporary values.yaml
+          # This is done so that Helm can use a single values file when packaging the chart 
+          # The resulting values.yaml will contain the merged (default) configuration from all specified files.
+          # It means the chart will install (wont work correctly) with the default configuration,
+          # and the user can always override values by providing their own values file.
+          
+          VALUESPATH="$CHART_DIR$PACKAGE_NAME/values"
+   
+          yq eval-all '. as $item ireduce ({}; . * $item )' \
+            $VALUESPATH/common-values.yaml \
+            $VALUESPATH/kafka.yaml \
+            $VALUESPATH/valkey.yaml \
+            $VALUESPATH/vault.yaml \
+            $VALUESPATH/certificate-manager.yaml \
+            $VALUESPATH/opa.yaml \
+            $VALUESPATH/federator.yaml \
+            $VALUESPATH/kafka-ui.yaml \
+            $VALUESPATH/valkey-ui.yaml \
+            $VALUESPATH/istio.yaml \
+            $VALUESPATH/overrides/local/local.yaml \
+            > $CHART_DIR$PACKAGE_NAME/values.yaml
+    
+      - name: Helm Package
+        run: |        
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/valkey
+          helm dependency update $CHART_DIR$PACKAGE_NAME/charts/vault
+          helm dependency update $CHART_DIR$PACKAGE_NAME
+
           echo "attempt to package with version ${{ env.version }}"
           helm package $CHART_DIR$PACKAGE_NAME --version ${{ env.version }}
 

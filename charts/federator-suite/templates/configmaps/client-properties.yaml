@@ -9,5 +9,79 @@ metadata:
     {{ include "federator-suite.client.labels" . | nindent 4 }}
 data:
   client.properties: |-
-{{ include "federator-suite.clientProperties" . | nindent 4 }}
+    # Kafka Configuration (Sender)
+    kafka.sender.defaultKeySerializerClass=org.apache.kafka.common.serialization.BytesSerializer
+    kafka.sender.defaultValueSerializerClass=org.apache.kafka.common.serialization.BytesSerializer
+
+    # Kafka Bootstrap Servers
+    kafka.bootstrapServers={{ include "federator-suite.kafka.bootstrapServers" . }}
+    {{- if or .Values.kafka.external (and (not .Values.kafka.external) .Values.kafka.sasl) }}
+    kafka.additional.security.protocol={{ include "federator-suite.kafka.securityProtocol" . }}
+    kafka.additional.sasl.mechanism={{ include "federator-suite.kafka.saslMechanism" . }}
+    kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
+    {{- end }}
+
+    # Topic Configuration
+    kafka.topic.prefix={{ include "federator-suite.kafkaTopicPrefix" . }}
+    kafka.consumerGroup={{ .Values.federatorClient.config.consumerGroup | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
+
+    # Redis/Valkey Configuration
+    {{- $redisTlsEnabled := false -}}
+    {{- if .Values.valkey.external }}
+    {{- if kindIs "bool" .Values.valkey.external }}
+    {{- $redisTlsEnabled = true }}
+    {{- else if .Values.valkey.external.enabled }}
+    {{- $redisTlsEnabled = true }}
+    {{- end }}
+    {{- else if and .Values.valkey.enabled .Values.valkey.valkey.primary.tls }}
+    {{- $redisTlsEnabled = .Values.valkey.valkey.primary.tls.enabled }}
+    {{- end }}
+    redis.host={{ include "federator-suite.valkey.host" . }}
+    redis.port={{ include "federator-suite.valkey.port" . }}
+    redis.tls.enabled={{ ternary "true" "false" $redisTlsEnabled }}
+    redis.prefix={{ .Values.federatorClient.config.redisPrefix | default (printf "federator-client-%s" (.Values.global.orgName | lower)) }}
+    redis.username=${VALKEY_USERNAME}
+    redis.password=${VALKEY_PASSWORD}
+    redis.aes.key=
+
+    # Common Configuration
+    common.configuration=/config/common-configuration.properties
+
+    # JobRunr Configuration
+    org.jobrunr.jobs.default-allow-concurrent-execution=false
+    jobs.dashboard.port=8085
+    jobs.dashboard.enabled=true
+
+    # Management Node
+    management.node.cache.ttl.seconds=60
+    management.node.request.timeout=60
+    management.node.base.url={{ .Values.global.managementNode.baseUrl }}
+
+    # Client TLS Configuration
+    client.mtlsEnabled={{ .Values.federatorClient.config.mtlsEnabled | default true }}
+    client.tlsEnabled={{ .Values.federatorClient.config.tlsEnabled | default true }}
+    client.p12FilePath=/secrets/federation-client-p12/${CLIENT_P12_FILENAME}
+    client.p12Password=${CLIENT_P12_PASSWORD}
+    client.truststoreFilePath=/secrets/federation-cert/keycloak.truststore.jks
+    client.truststorePassword=${TRUSTSTORE_PASSWORD}
+    client.keystorePassword=${CLIENT_KEYSTORE_PASSWORD}
+
+    # Connection Configuration
+    connections.configuration=/client-connections/connection-configuration.json
+
+    # File Storage Configuration
+    client.files.storage.provider={{ .Values.federatorClient.config.storage.provider | upper }}
+    {{- if eq (.Values.federatorClient.config.storage.provider | upper) "S3" }}
+    files.s3.bucket={{ .Values.federatorClient.config.storage.s3.bucket }}
+    aws.s3.region={{ .Values.federatorClient.config.storage.s3.region }}
+    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "AZURE" }}
+    azure.storage.connection.string={{ .Values.federatorClient.config.storage.azure.connectionString }}
+    azure.storage.account.name={{ .Values.federatorClient.config.storage.azure.accountName }}
+    azure.storage.endpoint={{ .Values.federatorClient.config.storage.azure.endpoint }}
+    files.azure.container={{ .Values.federatorClient.config.storage.azure.container }}
+    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "GCP" }}
+    files.gcp.bucket={{ .Values.federatorClient.config.storage.gcp.bucket }}
+    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "LOCAL" }}
+    client.files.temp.dir={{ .Values.federatorClient.config.storage.local.tempDir | default "" }}
+    {{- end }}
 {{- end }}

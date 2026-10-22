@@ -1,0 +1,28 @@
+{{- if .Values.serviceMesh.istio.enabled }}
+{{- if .Values.serviceMesh.istio.authorizationPolicy.denyByDefault }}
+
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: federator-allow-opa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "federator-suite.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: opa
+      {{- include "federator-suite.selectorLabels" . | nindent 6 }}
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - {{ .Release.Namespace }}
+      to:
+        - operation:
+            ports:
+              - "8181"
+
+
+{{- end }}
+{{- end }}

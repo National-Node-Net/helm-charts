@@ -16,22 +16,18 @@ spec:
   revisionHistoryLimit: {{ .Values.federatorServer.revisionHistoryLimit | default 3 }}
   selector:
     matchLabels:
-      app: federator-server
       {{ include "federator-suite.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/server-properties.yaml") . | sha256sum }}
+        checksum/common-configuration: {{ include (print $.Template.BasePath "/configmaps/common-configuration.yaml") . | sha256sum }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
-        {{- if .Values.serviceMesh.istio.enabled }}
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"
-        {{- end }}
         {{- with .Values.federatorServer.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        app: federator-server
         {{ include "federator-suite.server.labels" . | nindent 8 }}
         {{- if eq .Values.global.clusterType "aks" }}
         azure.workload.identity/use: "true"
@@ -57,17 +53,13 @@ spec:
           containerPort: {{ .Values.federatorServer.config.jobsDashboardPort }}
           protocol: TCP
         env:
-        - name: IDP_TRUSTSTORE_PATH
-          value: /secrets/federation-cert/keycloak.truststore.jks
-        - name: IDP_KEYSTORE_PATH
-          value: /secrets/federation-cert/ndtp-keystore.jks
-        - name: SERVER_P12_FILE_PATH
-          value: /secrets/federation-server-p12/dev-ndtp.p12
-        - name: SERVER_TRUSTSTORE_FILE_PATH
-          value: /secrets/federation-cert/keycloak.truststore.jks
+        - name: FEDERATOR_SERVER_PROPERTIES
+          value: /config/server.properties
+        # the app doesnt read any env-vars directly - all the env vars we have are injected via the runtime secret
+        # and used via envsubst to update the configuration files in /config
         envFrom:
-        - configMapRef:
-            name: federator-server-config
+        - secretRef:
+            name: {{ .Values.federatorServer.runtimeSecret | default "federator-runtime-properties" }}
         # TCP socket probes verify that the server process is listening on the app port.
         # This is used because the server exposes gRPC rather than a simple HTTP health endpoint.
         livenessProbe:
@@ -89,8 +81,14 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /config
+        - name: server-properties-volume
+          mountPath: /config-templates/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
+          subPath: server.properties
+          readOnly: true
         - name: common-configuration-volume
-          mountPath: /common-configuration
+          mountPath: /config-templates/common-configuration.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
+          subPath: common-configuration.properties
+          readOnly: true
         - name: federation-cert
           mountPath: /secrets/federation-cert
           readOnly: true
@@ -99,13 +97,12 @@ spec:
           readOnly: true
         - name: kafka-auth-volume
           mountPath: /app/config/kafka-auth/
-        - name: cert-storage
-          mountPath: /certs
-          readOnly: true
         securityContext:
           {{- toYaml .Values.federatorServer.securityContext | nindent 10 }}
       volumes:
       - name: config-volume
+        emptyDir: {}
+      - name: server-properties-volume
         configMap:
           name: federator-server-properties
       - name: kafka-auth-volume
@@ -116,14 +113,10 @@ spec:
           name: common-configuration
       - name: federation-cert
         secret:
-          secretName: {{ .Values.secrets.certificates.external.existingSecrets.federationCert | default "federation-cert" }}
+          secretName: federation-cert
       - name: federation-server-p12
         secret:
-          secretName: {{ .Values.secrets.certificates.external.existingSecrets.serverP12 | default "federation-server-p12" }}
-      - name: cert-storage
-        persistentVolumeClaim:
-          claimName: {{ include "federator-suite.certStorage.claimName" . }}
-          readOnly: true
+          secretName: federation-server-p12
       {{- with .Values.federatorServer.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

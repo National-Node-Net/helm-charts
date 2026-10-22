@@ -110,7 +110,7 @@ data:
 
       if [ "$CLOUD_PROVIDER" = "local" ]; then
         log "Local mode detected. Unsealing with generated keys."
-        keys_csv="$(json_array unseal_keys_b64 "$INIT_RESP")"
+        keys_csv="$(json_array keys_base64 "$INIT_RESP")"
         [ -z "$keys_csv" ] && fail "Unseal keys not found in init response"
         old_ifs="$IFS"
         IFS=,
@@ -133,8 +133,8 @@ data:
       fi
 
       log "Storing init credentials in secret backend (${CLOUD_PROVIDER})."
-      recovery_keys="$(json_array recovery_keys_b64 "$INIT_RESP")"
-      unseal_keys="$(json_array unseal_keys_b64 "$INIT_RESP")"
+      recovery_keys="$(json_array recovery_keys_base64 "$INIT_RESP")"
+      unseal_keys="$(json_array keys_base64 "$INIT_RESP")"
       secret_payload="{\"root_token\":\"${VAULT_TOKEN}\",\"recovery_keys_b64\":[${recovery_keys}],\"unseal_keys_b64\":[${unseal_keys}]}"
 
       case "$CLOUD_PROVIDER" in
@@ -278,6 +278,12 @@ data:
     vault_post /v1/sys/policies/acl/certificate-manager "{\"policy\":\"${policy}\"}" >/dev/null
 
     vault_post /v1/auth/kubernetes/role/certificate-manager "{\"bound_service_account_names\":[\"${cert_manager_sa}\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"certificate-manager\"],\"ttl\":\"1h\"}" >/dev/null
+
+{{- if .Values.vault.staticSecrets.enabled }}
+    static_secrets_policy='path \"secret/data/apps/client-server\" { capabilities = [\"read\"] } path \"secret/metadata/apps/client-server\" { capabilities = [\"read\", \"list\"] }'
+    vault_post /v1/sys/policies/acl/federator-suite-client-server-vault-reader '{"policy":"'"${static_secrets_policy}"'"}' >/dev/null
+    vault_post /v1/auth/kubernetes/role/federator-suite-client-server-vault-reader "{\"bound_service_account_names\":[\"federator-suite-vault-internal\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"federator-suite-client-server-vault-reader\"],\"ttl\":\"1h\"}" >/dev/null
+{{- end }}
 
     log "Vault setup complete."
     park_idle
