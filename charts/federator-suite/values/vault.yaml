@@ -87,6 +87,8 @@ vault:
         replicas: 3
         raft:
           enabled: true
+          # Keep a stable Raft node ID across pod restarts and rescheduling.
+          setNodeId: true
           config: |
             ui = true
 

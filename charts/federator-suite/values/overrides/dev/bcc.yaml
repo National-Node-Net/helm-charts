@@ -7,7 +7,7 @@ global:
   clusterType: eks
   orgName: bcc
   orgPrefix: bcc
-  namespace: ia-federation  # Namespace must already exist in EKS cluster. 
+  namespace: helm-ia-federation  # Namespace must already exist in EKS cluster.
 # Kafka Configuration
 kafka:
   external: true
@@ -199,6 +199,12 @@ vault:
 
             storage "raft" {
               path = "/vault/data"
+
+              # A pod with a new/empty data volume must join the existing
+              # ordinal-0 leader, never initialize an independent cluster.
+              retry_join {
+                leader_api_addr = "http://federator-suite-vault-0.federator-suite-vault-internal:8200"
+              }
             }
 
             seal "awskms" {
@@ -209,11 +215,15 @@ vault:
             service_registration "kubernetes" {}
 
 certificateManager:
-  enabled: false  
+  # Bring-up only: bootstrap/onboarding is not complete, so the identity below
+  # deliberately uses the reserved .invalid TLD and must be replaced before issuance.
+  enabled: true
+  podAnnotations:
+    traffic.sidecar.istio.io/excludeOutboundPorts: "8200"
   persistence:
     accessMode: ReadWriteOnce 
   image:
-    repository: "537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/federator-certificate-manager"
+    repository: "537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-certificate-manager"
     tag: "1.0.0"
   config:
     managementNode:
@@ -225,5 +235,7 @@ certificateManager:
     cert:
       subjectOrg: "bcc"
       subjectCountry: "GB"
+      subjectCn: "bcc-certificate-identity-pending.invalid"
+      subjectAltNames: "bcc-certificate-identity-pending.invalid"
 
 # BCC-specific secrets (defined in secrets/bcc-secrets.yaml)
