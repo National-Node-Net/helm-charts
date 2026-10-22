@@ -72,5 +72,4 @@ spec:
           capabilities:
             drop:
             - ALL
-          runAsNonRoot: true
 {{- end }}
