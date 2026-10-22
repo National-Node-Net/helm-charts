@@ -15,8 +15,7 @@ data:
     # Kafka Configuration (Sender)
     kafka.sender.defaultKeySerializerClass=org.apache.kafka.common.serialization.BytesSerializer
     kafka.sender.defaultValueSerializerClass=org.apache.kafka.common.serialization.BytesSerializer
-
-{{- if not .Values.kafka.external }}
+{{ if not .Values.kafka.external }}
     # Internal Kafka Bootstrap Servers
     kafka.bootstrapServers=kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
     kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}

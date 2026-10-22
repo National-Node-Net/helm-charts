@@ -25,8 +25,7 @@ data:
     kafka.consumerGroup=server.consumer
     kafka.pollDuration=PT10S
     kafka.pollRecords=100
-
-{{- if not .Values.kafka.external }}
+{{ if not .Values.kafka.external }}
     # Internal Kafka Bootstrap Servers
     kafka.bootstrapServers=kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
     kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
