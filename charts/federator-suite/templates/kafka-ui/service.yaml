@@ -1,4 +1,4 @@
-{{- if .Values.kafkaUi.enabled }}
+{{- if .Values.kafka.ui.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -8,26 +8,16 @@ metadata:
   labels:
     app: kafka-ui
     {{ include "federator-suite.labels" . | nindent 4 }}
-  {{- with .Values.kafkaUi.service.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
 spec:
-  type: {{ .Values.kafkaUi.service.type }}
-  {{- if and (eq .Values.kafkaUi.service.type "NodePort") .Values.kafkaUi.service.nodePort }}
+  type: {{ .Values.kafka.ui.service.type }}
   ports:
   - port: 8080
     targetPort: http
     protocol: TCP
     name: http
-    nodePort: {{ .Values.kafkaUi.service.nodePort }}
-  {{- else }}
-  ports:
-  - port: 8080
-    targetPort: http
-    protocol: TCP
-    name: http
-  {{- end }}
+    {{- if and (eq .Values.kafka.ui.service.type "NodePort") .Values.kafka.ui.service.nodePort }}
+    nodePort: {{ .Values.kafka.ui.service.nodePort }}
+    {{- end }}
   selector:
     app: kafka-ui
 {{- end }}

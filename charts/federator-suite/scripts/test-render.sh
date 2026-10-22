@@ -53,7 +53,6 @@ test_scenario() {
     -f values/certificate-manager.yaml \
     -f values/opa.yaml \
     -f values/federator.yaml \
-    -f values/kafka-ui.yaml \
     -f values/valkey-ui.yaml \
     -f values/istio.yaml \
     $values_args \

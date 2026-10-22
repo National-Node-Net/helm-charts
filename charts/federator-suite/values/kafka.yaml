@@ -14,3 +14,13 @@ kafka:
     bootstrapServers: "aws-msk-kafka-for-example"
     securityProtocol: "SASL_SSL"
     saslMechanism: "SCRAM-SHA-512"  # todo for IAM, AWS)MSK_IAM and sasl.client.callback.handler.class=software.amazon.msk.auth.iam.IAMClientCallbackHandler
+  ui:
+    enabled: true
+    service:
+      type: NodePort
+      port: 8080
+      nodePort: 30090  # Access via http://localhost:9090 (mapped in Kind)
+    image:
+      repository: provectuslabs/kafka-ui
+      tag: latest
+      pullPolicy: IfNotPresent

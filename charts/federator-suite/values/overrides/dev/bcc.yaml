@@ -7,17 +7,35 @@ global:
   clusterType: eks
   orgName: bcc
   orgPrefix: bcc
-  namespace: ia-federation  # Namespace must already exist in EKS cluster. 
+  namespace: helm-federator-suite-bcc # Namespace must already exist in EKS cluster.
+# These Secrets are created and refreshed by Vault Secrets Operator. Do not let
+# the chart render its placeholder Secret values.
+secrets:
+  create: false
+
 # Kafka Configuration
 kafka:
   external: true
-  enabled: false  # In-cluster Kafka sub-chart disabled (using external MSK)
-  # External Kafka configuration (comment out below if using in-cluster Kafka)
-  externalConfig:
-    bootstrapServers: "b-1.devianodemsk.6fou3l.c3.kafka.eu-west-2.amazonaws.com:9096,b-2.devianodemsk.6fou3l.c3.kafka.eu-west-2.amazonaws.com:9096"
+  internalSettings:
+    config:  # if this is provided it will be used as Kafka's configuration
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      auto.create.topics.enable: true
+  externalSettings:
+    bootstrapServers: "aws-msk-kafka-for-example"
     securityProtocol: "SASL_SSL"
-    saslMechanism: "SCRAM-SHA-512"
-  # SASL SCRAM-SHA-512 credentials configured in bcc-secrets.yaml
+    saslMechanism: "SCRAM-SHA-512"  # todo for IAM, AWS)MSK_IAM and sasl.client.callback.handler.class=software.amazon.msk.auth.iam.IAMClientCallbackHandler
+  ui:
+    enabled: true
+    service:
+      type: ClusterIP
+    image:
+      repository: provectuslabs/kafka-ui
+      tag: latest
+      pullPolicy: IfNotPresent
 
 # In-cluster Bitnami Valkey
 valkey:
@@ -26,9 +44,10 @@ valkey:
 
 # Federator Server - AWS Dev
 federatorServer:
+  runtimeSecret: federator-runtime-properties
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-server
-    tag: "28-01-26"  # from org2 kustomize overlay
+    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-server # {"$imagepolicy": "flux-system:federator-suite-server-image-policy:name"}
+    tag: "1.2.0-20261021141726" # {"$imagepolicy": "flux-system:federator-suite-server-image-policy:tag"}
     pullPolicy: IfNotPresent
   
   replicaCount: 1
@@ -63,9 +82,10 @@ federatorServer:
 
 # Federator Client - AWS Dev
 federatorClient:
+  runtimeSecret: federator-runtime-properties
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-client
-    tag: "28-01-26"  # from org2 kustomize overlay
+    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-client # {"$imagepolicy": "flux-system:federator-suite-client-image-policy:name"}
+    tag: "1.2.0-20261021141726" # {"$imagepolicy": "flux-system:federator-suite-client-image-policy:tag"}
     pullPolicy: IfNotPresent
   
   replicaCount: 1
@@ -89,7 +109,7 @@ federatorClient:
   # BCC-specific configuration
   config:
     kafkaTopicPrefix: "DeprecatedBCC"
-    consumerGroup: "ndtp.dbt.gov.uk.bcc"
+    kafkaConsumerGroup: "ndtp.dbt.gov.uk.bcc"
     redisPrefix: "federator-client-bcc"
     mtlsEnabled: true
     tlsEnabled: true
@@ -103,17 +123,6 @@ federatorClient:
   env:
     IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org1-keystore.jks
     CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-
-# UIs disabled by default (kustomize didn’t expose them). Enable and choose LB/NLB later if needed.
-kafkaUi:
-  enabled: true
-  image:
-    repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-    annotations: {}
 
 valkeyUi:
   enabled: true
@@ -163,20 +172,32 @@ managementNode:
 
 # Vault + Certificate Manager (AWS EKS)
 vault:
+  # The packaged chart's defaults are for local development. BCC uses AWS KMS
+  # auto-unseal, so the setup sidecar must request recovery keys, not Shamir
+  # unseal shares.
+  cloudProvider: aws
+  devMode: false
   seal:
     aws:
       region: eu-west-2
       kmsKeyId: "a95fad0c-6728-43ad-a0f5-a6076ca21acb"
   serviceAccount:
+    # The nested Vault chart creates and uses <release>-vault. The parent
+    # chart account (<release>-vault-sa) is otherwise unused.
+    create: false
     annotations:
-      eks.amazonaws.com/role-arn: "arn:aws:iam::537124944113:role/dev-ia-node-fed-vault-unseal-role"
+      eks.amazonaws.com/role-arn: "arn:aws:iam::537124944113:role/federator-suite-bcc-vault-unseal-role"
   secretsManager:
-    secretName: "dev-ia-node-fed-vault-secrets"
+    # A dedicated secret is required: the setup sidecar writes Vault bootstrap
+    # material here and must not share it with another Vault installation.
+    secretName: "federator-suite-bcc-vault-secrets"
+  staticSecrets:
+    enabled: true
   vault:
     server:
       serviceAccount:
         annotations:
-          eks.amazonaws.com/role-arn: "arn:aws:iam::537124944113:role/dev-ia-node-fed-vault-unseal-role"
+          eks.amazonaws.com/role-arn: "arn:aws:iam::537124944113:role/federator-suite-bcc-vault-unseal-role"
       # Required when serviceMesh.istio.enabled: Istio STRICT mTLS otherwise
       # blocks the raft/unseal listener (NR filter_chain_not_found)
       annotations:
@@ -205,9 +226,9 @@ vault:
             service_registration "kubernetes" {}
 
 certificateManager:
-  enabled: false  
+  enabled: false
   persistence:
-    accessMode: ReadWriteOnce 
+    accessMode: ReadWriteOnce
   image:
     repository: "537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/federator-certificate-manager"
     tag: "1.0.0"

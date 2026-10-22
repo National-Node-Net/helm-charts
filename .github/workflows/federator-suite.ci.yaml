@@ -34,7 +34,6 @@ env:
     -f values/certificate-manager.yaml
     -f values/opa.yaml
     -f values/federator.yaml
-    -f values/kafka-ui.yaml
     -f values/valkey-ui.yaml
     -f values/istio.yaml
     -f values/dry-run.yaml
@@ -134,7 +133,6 @@ jobs:
             $VALUESPATH/certificate-manager.yaml \
             $VALUESPATH/opa.yaml \
             $VALUESPATH/federator.yaml \
-            $VALUESPATH/kafka-ui.yaml \
             $VALUESPATH/valkey-ui.yaml \
             $VALUESPATH/istio.yaml \
             $VALUESPATH/overrides/local/local.yaml \

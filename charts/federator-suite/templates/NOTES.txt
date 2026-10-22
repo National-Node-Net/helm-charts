@@ -18,13 +18,22 @@ Cluster Type:   {{ .Values.global.clusterType }}
 DEPLOYMENT STATUS
 --------------------------------------------------------------------------------
 
-Kafka:    {{ if not .Values.kafka.external }}In-Cluster (Bitnami){{ else }}External ({{ .Values.kafka.externalConfig.bootstrapServers }}){{ end }}
+Kafka:    {{ if not .Values.kafka.external }}In-Cluster (Strimzi){{ else }}External ({{ .Values.kafka.externalSettings.bootstrapServers }}){{ end }}
 Valkey:   {{ if not .Values.valkey.external }}In-Cluster (Bitnami){{ else }}External ({{ .Values.valkey.externalConfig.host }}:{{ .Values.valkey.externalConfig.port | default 6379 }}){{ end }}
 Istio:    {{ if $istioEnabled }}Enabled{{ else }}Disabled{{ end }}
 
 Components Deployed:
+{{- if .Values.federatorServer.enabled }}
   ✓ Federator Server
+{{- end }}
+{{- if .Values.federatorClient.enabled }}
   ✓ Federator Client
+{{- end }}
+{{- if not .Values.kafka.external }}
+  ✓ Kafka (Strimzi, in-cluster)
+{{- else }}
+  - Kafka (external; no in-cluster Kafka deployed)
+{{- end }}
   ✓ HashiCorp Vault (HA Raft, KV v2)
 {{- if .Values.certificateManager.enabled }}
   ✓ Certificate Manager (headless scheduler)
@@ -32,7 +41,7 @@ Components Deployed:
 {{- if .Values.opa.enabled }}
   ✓ OPA (Open Policy Agent)
 {{- end }}
-{{- if .Values.kafkaUi.enabled }}
+{{- if .Values.kafka.ui.enabled }}
   ✓ Kafka UI
 {{- end }}
 {{- if .Values.valkeyUi.enabled }}
@@ -53,7 +62,7 @@ Local Access (Kind Cluster):
   Federator Client:
     http://localhost:8081
 
-{{- if .Values.kafkaUi.enabled }}
+{{- if .Values.kafka.ui.enabled }}
   Kafka UI:
     http://localhost:8088
 {{- end }}
@@ -117,9 +126,9 @@ Management Node:
 
 Kafka Bootstrap Servers:
   {{- if .Values.kafka.external }}
-  {{ .Values.kafka.externalConfig.bootstrapServers }}
+  {{ .Values.kafka.externalSettings.bootstrapServers }}
   {{- else }}
-  {{ .Release.Name }}-kafka:9092
+  kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
   {{- end }}
 
 Valkey Host:
@@ -131,7 +140,7 @@ Valkey Host:
 
 Security Protocol:
   {{- if .Values.kafka.external }}
-  {{ .Values.kafka.externalConfig.securityProtocol }}
+  {{ .Values.kafka.externalSettings.securityProtocol }}
   {{- else }}
   SASL_PLAINTEXT
   {{- end }}
@@ -190,7 +199,6 @@ helm upgrade {{ .Release.Name }} . -n {{ .Release.Namespace }} \\
   -f values/certificate-manager.yaml \\
   -f values/opa.yaml \\
   -f values/federator.yaml \\
-  -f values/kafka-ui.yaml \\
   -f values/valkey-ui.yaml \\
   -f values/istio.yaml \\
 {{- if eq .Values.global.environment "local" }}
