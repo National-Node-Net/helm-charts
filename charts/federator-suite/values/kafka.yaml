@@ -1,117 +1,16 @@
 # Kafka Configuration
-# Single switch: external = false → in-cluster Bitnami (chart enabled), external = true → external managed (chart disabled)
-
+# if we have external Kafka, set external to true and provide the necessary configuration
 kafka:
-  # Main switch: false = in-cluster Bitnami, true = external managed (MSK, Event Hubs, etc.)
-  external: false
-  
-  # Subchart control (automatically derived from 'external'):
-  # - external: false → enabled: true  (load and deploy Bitnami chart)
-  # - external: true  → enabled: false (skip Bitnami chart, saves time)
-  # IMPORTANT: Always set enabled = !external
-  # Default: false (enable explicitly in overrides for in-cluster Kafka)
-  enabled: false
-  
-  # ============================================
-  # In-cluster Bitnami Kafka configuration (used when external: false)
-  # These values pass directly to the Bitnami Kafka chart
-  # ============================================
-  
-  # Image configuration - use bitnami-legacy for Kafka 3.6.x/3.9.x
-  image:
-    registry: docker.io
-    repository: bitnamilegacy/kafka
-    tag: "3.6.2-debian-12-r9"  # bitnami-legacy Kafka 3.6.x
-  
-  # KRaft mode enabled (no ZooKeeper)
-  kraft:
-    enabled: true
-  
-  # Controller configuration (for KRaft)
-  controller:
-    replicaCount: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-  
-  # Broker configuration
-  broker:
-    replicaCount: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 512Mi
-      limits:
-        cpu: 500m
-        memory: 1Gi
-  
-  # Listeners configuration
-  listeners:
-    client:
-      protocol: SASL_PLAINTEXT
-    controller:
-      protocol: SASL_PLAINTEXT
-    interbroker:
-      protocol: SASL_PLAINTEXT
-  
-  # SASL authentication configuration
-  # NOTE: Client username/password are defined in secrets.yaml (secrets.kafka.sasl.client)
-  # and MUST match the secrets.kafkaAuth values to ensure consistency
-  # The Bitnami chart will create these users in Kafka with SCRAM-SHA-512
-  sasl:
-    client:
-      # These are populated from secrets.yaml - DO NOT set here
-      users: []
-      passwords: []
-    controller:
-      users:
-        - "controller"
-      passwords:
-        - "controller-password"
-    interbroker:
-      users:
-        - "interbroker"
-      passwords:
-        - "interbroker-password"
-  
-  # Storage configuration
-  # RECOMMENDED: Enable persistence for dev/staging/prod to prevent data loss on pod restart
-  # For local development: Override persistence.enabled=false in overrides/local/*.yaml
-  persistence:
-    enabled: true  # Default to persistent (override to false for local dev)
-    size: 8Gi      # 8Gi for dev/staging, increase for production based on retention needs
-    storageClass: ""  # Uses cluster default StorageClass (override for specific storage)
-  
-  # Kafka configuration
-  numPartitions: 3
-  defaultReplicationFactor: 1
-  logRetentionHours: 168
-  
-  # Enable auto-create topics
-  autoCreateTopicsEnable: true
-  
-  # Additional broker configuration
-  extraConfig: |-
-    auto.create.topics.enable=true
-  
-  # ============================================
-  # External Kafka configuration (used when external: true)
-  # ============================================
-  externalConfig:
-    
-    # MSK Bootstrap servers (comma-separated or array)
-    bootstrapServers: "b-1.devianodemsk.6fou3l.c3.kafka.eu-west-2.amazonaws.com:9096,b-2.devianodemsk.6fou3l.c3.kafka.eu-west-2.amazonaws.com:9096"
-    
-    # Security settings
-    securityProtocol: "SASL_SSL"  # SASL_SSL for MSK with SCRAM
-    saslMechanism: "SCRAM-SHA-512"
-    
-    # MSK IAM authentication (alternative to SCRAM)
-    iam:
-      enabled: false
-      # When enabled, uses AWS IAM instead of SCRAM
-      # Requires: mskIamAuth.enabled=true in federator-server/client
+  external: true
+  internalSettings:
+    config:  # if this is provided it will be used as Kafka's configuration
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      auto.create.topics.enable: true
+  externalSettings:
+    bootstrapServers: "aws-msk-kafka-for-example"
+    securityProtocol: "SASL_SSL"
+    saslMechanism: "SCRAM-SHA-512"  # todo for IAM, AWS)MSK_IAM and sasl.client.callback.handler.class=software.amazon.msk.auth.iam.IAMClientCallbackHandler

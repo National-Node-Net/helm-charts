@@ -1,5 +1,4 @@
 # Federator Server & Client Configuration
-
 federatorServer:
   enabled: true
   # Existing Secret used to render server.properties at pod startup.
@@ -75,12 +74,6 @@ federatorServer:
     serverPort: 8080
     logLevel: INFO
     
-    # Kafka topic configuration
-    kafkaTopicPrefix: "Deprecated"
-    inboundTopic: "inbound"
-    outboundTopic: "outbound"
-    
-    # Kafka consumer settings
     kafkaConsumerGroup: server.consumer
     kafkaPollDuration: PT10S
     kafkaPollRecords: 100
@@ -206,10 +199,6 @@ federatorClient:
     
     # Kafka topic configuration
     kafkaTopicPrefix: "Deprecated"  # Override per org
-    inboundTopic: "inbound"
-    outboundTopic: "outbound"
-    
-    # Kafka consumer settings
     kafkaConsumerGroup: "ndtp.dbt.gov.uk"  # Override per org
     kafkaKeySerializer: org.apache.kafka.common.serialization.BytesSerializer
     kafkaValueSerializer: org.apache.kafka.common.serialization.BytesSerializer

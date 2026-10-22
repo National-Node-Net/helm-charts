@@ -134,44 +134,7 @@ Generic resource name helper (with release prefix)
 {{- printf "%s-%s" $.Release.Name $name }}
 {{- end }}
 
-{{/*
-Kafka bootstrap servers
-Returns the appropriate Kafka bootstrap servers based on external flag
-Strimzi creates service: <cluster-name>-kafka-bootstrap
-*/}}
-{{- define "federator-suite.kafka.bootstrapServers" -}}
-{{- if .Values.kafka.external }}
-{{- .Values.kafka.externalConfig.bootstrapServers }}
-{{- else }}
-{{- printf "%s-kafka:9092" .Release.Name }}
-{{- end }}
-{{- end }}
 
-{{/*
-Kafka security protocol
-*/}}
-{{- define "federator-suite.kafka.securityProtocol" -}}
-{{- if .Values.kafka.external }}
-{{- .Values.kafka.externalConfig.securityProtocol }}
-{{- else }}
-{{- if .Values.kafka.listeners }}
-{{- .Values.kafka.listeners.client.protocol | default "SASL_PLAINTEXT" }}
-{{- else }}
-SASL_PLAINTEXT
-{{- end }}
-{{- end }}
-{{- end }}
-
-{{/*
-Kafka SASL mechanism
-*/}}
-{{- define "federator-suite.kafka.saslMechanism" -}}
-{{- if .Values.kafka.external -}}
-{{- .Values.kafka.externalConfig.saslMechanism -}}
-{{- else -}}
-SCRAM-SHA-512
-{{- end -}}
-{{- end -}}
 
 {{/*
 Valkey host
@@ -237,9 +200,6 @@ Get Valkey/Redis username
 Validate configuration - basic checks
 */}}
 {{- define "federator-suite.validateConfig" -}}
-{{- if and .Values.kafka.external (not .Values.kafka.externalConfig.bootstrapServers) }}
-{{- fail "ERROR: kafka.external is true but kafka.externalConfig.bootstrapServers is not set" }}
-{{- end }}
 {{- if and .Values.valkey.external (not .Values.valkey.externalConfig.host) }}
 {{- fail "ERROR: valkey.external is true but valkey.externalConfig.host is not set" }}
 {{- end }}

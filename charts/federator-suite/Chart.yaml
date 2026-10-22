@@ -10,10 +10,7 @@ maintainers:
     email: contact@ndtp.gov.uk
 
 dependencies:
-  - name: kafka
-    version: "~31.0.0"
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: kafka.enabled
+  # Kafka is provided as default by the Strimzi operator and does not require a Helm chart dependency.
   - name: valkey
     version: "0.1.0"
     repository: "file://charts/valkey"

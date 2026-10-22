@@ -9,7 +9,7 @@ metadata:
     {{ include "federator-suite.client.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.federatorClient.replicaCount }}
-  {{- with .Values.federatorClient.strategy }}
+{{- with .Values.federatorClient.strategy }}
   strategy:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -55,11 +55,22 @@ spec:
         env:
         - name: FEDERATOR_CLIENT_PROPERTIES
           value: /config/client.properties
-        # the app doesnt read any env-vars directly - all the env vars we have are injected via the runtime secret
+        {{- if not .Values.kafka.external }}
+        # if we are using the bundled  strimzi Kafka, we need to set the KAFKA_SASL_JAAS_CONFIG environment variable from the kafka-user secret that strimzi creates
+        - name: KAFKA_SASL_JAAS_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: kafka-user
+              key: sasl.jaas.config
+        {{- end }}
+
+        # the app doesnt read many env-vars directly - all the env vars we have are injected via the runtime secret
         # and used via envsubst to update the configuration files in /config      
         envFrom:
         - secretRef:
             name: {{ .Values.federatorClient.runtimeSecret | default "federator-runtime-properties" }}
+
+
         # HTTP probes use the JobRunr dashboard endpoint.
         # This confirms the client container is responsive and ready to serve traffic.
         livenessProbe:
