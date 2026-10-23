@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: federator-server-properties
+  name: {{ include "server.name" . }}-properties
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.server.labels" . | nindent 4 }}

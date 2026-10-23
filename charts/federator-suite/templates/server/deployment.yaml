@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: federator-server
+  name: {{ include "server.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.server.labels" . | nindent 4 }}
@@ -32,7 +32,7 @@ spec:
         azure.workload.identity/use: "true"
         {{- end }}
     spec:
-      serviceAccountName: {{ include "federator-suite.server.serviceAccountName" . }}
+      serviceAccountName: {{ include "server.serviceAccountName" . }}
       restartPolicy: Always
       {{- with .Values.federatorServer.imagePullSecrets }}
       imagePullSecrets:
@@ -108,7 +108,7 @@ spec:
         emptyDir: {}
       - name: server-properties-volume
         configMap:
-          name: federator-server-properties
+          name: {{ include "server.name" . }}-properties
       - name: kafka-auth-volume
         secret:
           secretName: kafka-auth-config    
