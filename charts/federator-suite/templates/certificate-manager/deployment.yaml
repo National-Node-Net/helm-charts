@@ -62,7 +62,7 @@ spec:
         imagePullPolicy: {{ .Values.certificateManager.image.pullPolicy | default "IfNotPresent" }}
         envFrom:
         - configMapRef:
-            name: certificate-manager-config
+            name: {{ include "certificateManager.name" . }}-config
         env:
         {{- if .Values.certificateManager.vaultToken.useSecret }}
         # TOKEN auth: inject vault token from k8s Secret (created by vault-setup sidecar in local mode)
@@ -70,7 +70,7 @@ spec:
         - name: VAULT_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ include "federator-suite.certificateManager.fullname" . }}-vault-token
+              name: {{ include "certificateManager.name" . }}-vault-token
               key: vault-token
         {{- end }}
         livenessProbe:

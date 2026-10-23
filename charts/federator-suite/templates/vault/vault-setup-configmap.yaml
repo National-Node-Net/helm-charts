@@ -24,6 +24,9 @@ data:
     SECRETS_MANAGER_SECRET_NAME="${SECRETS_MANAGER_SECRET_NAME:-{{ .Values.vault.secretsManager.secretName }}}"
     KEY_SHARES="${VAULT_KEY_SHARES:-{{ .Values.vault.setup.keyShares | default 5 }}}"
     KEY_THRESHOLD="${VAULT_KEY_THRESHOLD:-{{ .Values.vault.setup.keyThreshold | default 3 }}}"
+    CERT_MANAGER_SA="{{ include "certificateManager.serviceAccountName" . }}"
+    CERT_MANAGER_TOKEN_SECRET="{{ include "certificateManager.name" . }}-vault-token"
+    NAMESPACE={{ .Release.Namespace }}
 
     log()  { echo "[vault-setup] $*"; }
     fail() { echo "[vault-setup] ERROR: $*" >&2; exit 1; }
@@ -88,12 +91,9 @@ data:
 
     sts_name="${HOSTNAME%-${ordinal}}"
     sts_name="${sts_name%-}"
-    release_name="${sts_name%-vault}"
-    release_name="${release_name%-}"
     cert_manager_sa="{{ include "certificateManager.serviceAccountName" . }}"
-    cert_manager_token_secret="${release_name}-certificate-manager-vault-token"
+    cert_manager_token_secret="{{ include "certificateManager.name" . }}-vault-token"
 
-    namespace="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
 
     log "Phase 1 - Waiting for Vault API (${VAULT_ADDR})"
     n=0
@@ -156,21 +156,21 @@ data:
           ca_cert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
           encoded_payload="$(printf '%s' "$secret_payload" | base64 | tr -d '\n')"
-          secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRETS_MANAGER_SECRET_NAME}\",\"namespace\":\"${namespace}\"},\"type\":\"Opaque\",\"data\":{\"vault-credentials\":\"${encoded_payload}\"}}"
+          secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRETS_MANAGER_SECRET_NAME}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"Opaque\",\"data\":{\"vault-credentials\":\"${encoded_payload}\"}}"
 
-          code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets")"
+          code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets")"
           if [ "$code" = "409" ]; then
-            code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
+            code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
           fi
           if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
             fail "Failed writing k8s secret ${SECRETS_MANAGER_SECRET_NAME} (HTTP ${code})"
           fi
 
           encoded_token="$(printf '%s' "$VAULT_TOKEN" | base64 | tr -d '\n')"
-          cm_secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${cert_manager_token_secret}\",\"namespace\":\"${namespace}\"},\"type\":\"Opaque\",\"data\":{\"vault-token\":\"${encoded_token}\"}}"
-          cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets")"
+          cm_secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${cert_manager_token_secret}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"Opaque\",\"data\":{\"vault-token\":\"${encoded_token}\"}}"
+          cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets")"
           if [ "$cm_code" = "409" ]; then
-            cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets/${cert_manager_token_secret}")"
+            cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${cert_manager_token_secret}")"
           fi
           if [ "$cm_code" -lt 200 ] || [ "$cm_code" -ge 300 ]; then
             fail "Failed writing k8s secret ${cert_manager_token_secret} (HTTP ${cm_code})"
@@ -207,7 +207,7 @@ data:
           kube_token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
           kube_api="https://kubernetes.default.svc"
           ca_cert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-          secret_body="$(curl -s --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" "${kube_api}/api/v1/namespaces/${namespace}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
+          secret_body="$(curl -s --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
           encoded_blob="$(printf '%s' "$secret_body" | grep -o '"vault-credentials":"[^"]*"' | head -1 | cut -d'"' -f4)"
           [ -z "$encoded_blob" ] && fail "vault-credentials missing in k8s secret ${SECRETS_MANAGER_SECRET_NAME}"
           sm_json="$(printf '%s' "$encoded_blob" | base64 -d 2>/dev/null || true)"
@@ -332,8 +332,8 @@ data:
 
     certificate_manager_role="$(cat <<ROLE
     {
-      "bound_service_account_names": ["${cert_manager_sa}"],
-      "bound_service_account_namespaces": ["${namespace}"],
+      "bound_service_account_names": ["${CERT_MANAGER_SA}"],
+      "bound_service_account_namespaces": ["${NAMESPACE}"],
       "policies": ["certificate-manager"],
       "ttl": "1h"
     }
@@ -356,7 +356,7 @@ data:
     client_server_reader_role="$(cat <<ROLE
     {
       "bound_service_account_names": ["federator-suite-vault-internal"],
-      "bound_service_account_namespaces": ["${namespace}"],
+      "bound_service_account_namespaces": ["${NAMESPACE}"],
       "policies": ["federator-suite-client-server-vault-reader"],
       "ttl": "1h"
     }
