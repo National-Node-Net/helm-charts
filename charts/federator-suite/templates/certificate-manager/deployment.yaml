@@ -59,17 +59,10 @@ spec:
       - name: certificate-manager
         image: "{{ .Values.certificateManager.image.repository }}:{{ .Values.certificateManager.image.tag }}"
         imagePullPolicy: {{ .Values.certificateManager.image.pullPolicy | default "IfNotPresent" }}
+        envFrom:
+        - configMapRef:
+            name: certificate-manager-config
         env:
-        # Vault configuration
-        - name: VAULT_ADDR
-          value: {{ include "federator-suite.vault.addr" . }}
-        # Spring Cloud Vault uses VAULT_URI (application.yml: uri: ${VAULT_URI:http://localhost:8200})
-        - name: VAULT_URI
-          value: {{ include "federator-suite.vault.addr" . }}
-        - name: VAULT_KV_PATH
-          value: {{ .Values.certificateManager.config.vault.kvPath | default "secret" | quote }}
-        - name: VAULT_SECRET_PATH
-          value: {{ .Values.certificateManager.config.vault.secretPath | default "node-net/client" | quote }}
         {{- if .Values.certificateManager.vaultToken.useSecret }}
         # TOKEN auth: inject vault token from k8s Secret (created by vault-setup sidecar in local mode)
         # Init container above guarantees this secret exists before this container starts.
@@ -79,48 +72,6 @@ spec:
               name: {{ include "federator-suite.certificateManager.fullname" . }}-vault-token
               key: vault-token
         {{- end }}
-        # Vault authentication method — drives Spring Cloud Vault strategy
-        # TOKEN: uses VAULT_TOKEN env var (local/Shamir); KUBERNETES: uses SA JWT (cloud)
-        # Corresponds to application.yml: authentication: ${VAULT_AUTHENTICATION:token}
-        - name: VAULT_AUTHENTICATION
-          value: {{ .Values.certificateManager.config.vault.authentication | default "TOKEN" | upper | quote }}
-        - name: VAULT_AUTH_ROLE
-          value: {{ .Values.certificateManager.config.vault.authRole | default "certificate-manager" | quote }}
-        # Management Node configuration
-        - name: MANAGEMENT_NODE_BASE_URL
-          value: {{ .Values.certificateManager.config.managementNode.baseUrl | default .Values.global.managementNode.baseUrl | quote }}
-        - name: MANAGEMENT_NODE_REQUEST_TIMEOUT
-          value: {{ .Values.certificateManager.config.managementNode.requestTimeout | default "60" | quote }}
-        # OAuth2 configuration
-        {{- if .Values.certificateManager.config.oauth2.enabled }}
-        - name: OAUTH2_ENABLED
-          value: "true"
-        - name: OAUTH2_TOKEN_URI
-          value: {{ .Values.certificateManager.config.oauth2.tokenUri | quote }}
-        - name: OAUTH2_CLIENT_ID
-          value: {{ .Values.certificateManager.config.oauth2.clientId | quote }}
-        {{- end }}
-        # Certificate configuration
-        - name: CERT_OUTPUT_DIR
-          value: {{ .Values.certificateManager.config.cert.outputDir | default "/certs" | quote }}
-        - name: CERT_RENEWAL_DAYS_BEFORE
-          value: {{ .Values.certificateManager.config.cert.renewalDaysBefore | default "30" | quote }}
-        - name: CERT_SCHEDULE_CRON
-          value: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" | quote }}
-        {{- if .Values.certificateManager.config.cert.subjectOrg }}
-        - name: CERT_SUBJECT_ORG
-          value: {{ .Values.certificateManager.config.cert.subjectOrg | quote }}
-        {{- end }}
-        {{- if .Values.certificateManager.config.cert.subjectCountry }}
-        - name: CERT_SUBJECT_COUNTRY
-          value: {{ .Values.certificateManager.config.cert.subjectCountry | quote }}
-        {{- end }}
-        # Spring Boot configuration
-        - name: SPRING_MAIN_WEB_APPLICATION_TYPE
-          value: "none"
-        - name: LOGGING_LEVEL_ROOT
-          value: {{ .Values.certificateManager.config.logLevel | default "INFO" | quote }}
-        # Exec probes for headless scheduler (no HTTP port)
         livenessProbe:
           exec:
             command:

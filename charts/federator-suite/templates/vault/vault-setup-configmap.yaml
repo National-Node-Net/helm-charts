@@ -61,6 +61,18 @@ data:
         "${VAULT_ADDR}$1" 2>/dev/null
     }
 
+    write_policy() {
+      policy_name="$1"
+      # Raw, readable Vault policy HCL from the POLICY heredoc.
+      policy_document="$2"
+      # The HTTP API requires policy HCL as a JSON string: escape quotes and
+      # represent line breaks as JSON newline escape sequences while retaining
+      # the readable source above.
+      policy_json="$(printf '%s\n' "$policy_document" | sed 's/"/\\"/g' | awk 'BEGIN { ORS="" } { printf "%s%s", NR == 1 ? "" : "\\n", $0 }')"
+      # Create or update the named ACL policy through Vault's HTTP API.
+      vault_post "/v1/sys/policies/acl/${policy_name}" "{\"policy\":\"${policy_json}\"}" >/dev/null
+    }
+
     park_idle() {
       log "Parking sidecar idle to avoid restart loops."
       while true; do sleep 3600; done
@@ -274,15 +286,83 @@ data:
     ca_cert="$(awk '{printf "%s\\n", $0}' /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)"
     vault_post /v1/auth/kubernetes/config "{\"kubernetes_host\":\"https://kubernetes.default.svc\",\"kubernetes_ca_cert\":\"${ca_cert}\",\"disable_iss_validation\":true}" >/dev/null
 
-    policy='path \"secret/data/certificate-manager/*\" { capabilities = [\"create\", \"update\", \"read\", \"list\"] } path \"secret/metadata/certificate-manager/*\" { capabilities = [\"list\", \"read\"] } path \"secret/delete/certificate-manager/*\" { capabilities = [\"update\"] } path \"secret/undelete/certificate-manager/*\" { capabilities = [\"update\"] } path \"node-net/data/*\" { capabilities = [\"create\", \"update\", \"read\", \"list\", \"delete\"] } path \"node-net/metadata/*\" { capabilities = [\"list\", \"read\", \"delete\"] } path \"node-net/delete/*\" { capabilities = [\"update\"] } path \"node-net/undelete/*\" { capabilities = [\"update\"] } path \"sys/mounts\" { capabilities = [\"read\"] } path \"sys/mounts/*\" { capabilities = [\"read\"] }'
-    vault_post /v1/sys/policies/acl/certificate-manager "{\"policy\":\"${policy}\"}" >/dev/null
+    certificate_manager_policy="$(cat <<'POLICY'
+    path "secret/data/certificate-manager/*" {
+      capabilities = ["create", "update", "read", "list"]
+    }
 
-    vault_post /v1/auth/kubernetes/role/certificate-manager "{\"bound_service_account_names\":[\"${cert_manager_sa}\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"certificate-manager\"],\"ttl\":\"1h\"}" >/dev/null
+    path "secret/metadata/certificate-manager/*" {
+      capabilities = ["list", "read"]
+    }
+
+    path "secret/delete/certificate-manager/*" {
+      capabilities = ["update"]
+    }
+
+    path "secret/undelete/certificate-manager/*" {
+      capabilities = ["update"]
+    }
+
+    path "node-net/data/*" {
+      capabilities = ["create", "update", "read", "list", "delete"]
+    }
+
+    path "node-net/metadata/*" {
+      capabilities = ["list", "read", "delete"]
+    }
+
+    path "node-net/delete/*" {
+      capabilities = ["update"]
+    }
+
+    path "node-net/undelete/*" {
+      capabilities = ["update"]
+    }
+
+    path "sys/mounts" {
+      capabilities = ["read"]
+    }
+
+    path "sys/mounts/*" {
+      capabilities = ["read"]
+    }
+    POLICY
+    )"
+    write_policy certificate-manager "$certificate_manager_policy"
+
+    certificate_manager_role="$(cat <<ROLE
+    {
+      "bound_service_account_names": ["${cert_manager_sa}"],
+      "bound_service_account_namespaces": ["${namespace}"],
+      "policies": ["certificate-manager"],
+      "ttl": "1h"
+    }
+    ROLE
+    )"
+    vault_post /v1/auth/kubernetes/role/certificate-manager "$certificate_manager_role" >/dev/null
 
 {{- if .Values.vault.staticSecrets.enabled }}
-    static_secrets_policy='path \"secret/data/apps/client-server\" { capabilities = [\"read\"] } path \"secret/metadata/apps/client-server\" { capabilities = [\"read\", \"list\"] }'
-    vault_post /v1/sys/policies/acl/federator-suite-client-server-vault-reader '{"policy":"'"${static_secrets_policy}"'"}' >/dev/null
-    vault_post /v1/auth/kubernetes/role/federator-suite-client-server-vault-reader "{\"bound_service_account_names\":[\"federator-suite-vault-internal\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"federator-suite-client-server-vault-reader\"],\"ttl\":\"1h\"}" >/dev/null
+    static_secrets_policy="$(cat <<'POLICY'
+    path "secret/data/apps/client-server" {
+      capabilities = ["read"]
+    }
+
+    path "secret/metadata/apps/client-server" {
+      capabilities = ["read", "list"]
+    }
+    POLICY
+    )"
+    write_policy federator-suite-client-server-vault-reader "$static_secrets_policy"
+    client_server_reader_role="$(cat <<ROLE
+    {
+      "bound_service_account_names": ["federator-suite-vault-internal"],
+      "bound_service_account_namespaces": ["${namespace}"],
+      "policies": ["federator-suite-client-server-vault-reader"],
+      "ttl": "1h"
+    }
+    ROLE
+    )"
+    vault_post /v1/auth/kubernetes/role/federator-suite-client-server-vault-reader "$client_server_reader_role" >/dev/null
 {{- end }}
 
     log "Vault setup complete."
