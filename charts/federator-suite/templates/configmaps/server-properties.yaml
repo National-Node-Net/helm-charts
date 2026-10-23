@@ -3,14 +3,21 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: federator-server-properties
+  name: {{ include "server.name" . }}-properties
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.server.labels" . | nindent 4 }}
 data:
   server.properties: |-
-    # Common Configuration
-    common.configuration=/config/common-configuration.properties
+    # Identity Provider (IDP) Configuration
+    idp.client.id=${IDP_CLIENT_ID}
+    idp.jwks.url=${IDP_JWKS_URL}
+    idp.token.url=${IDP_TOKEN_URL}
+    idp.keystore.path=${IDP_KEYSTORE_PATH}
+    idp.truststore.path=/secrets/federation-cert/keycloak.truststore.jks
+    idp.mtls.enabled=${IDP_MTLS_ENABLED}
+    idp.keystore.password=${IDP_KEYSTORE_PASSWORD}
+    idp.truststore.password=${IDP_TRUSTSTORE_PASSWORD}
 
     # Shared Headers
     shared.headers=Security-Label^Content-Type
@@ -27,13 +34,13 @@ data:
     kafka.pollRecords=100
 {{ if not .Values.kafka.external }}
     # Internal Kafka Bootstrap Servers
-    kafka.bootstrapServers=kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
+    kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}
     kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
     kafka.additional.security.protocol=SASL_PLAINTEXT
     kafka.additional.sasl.mechanism=SCRAM-SHA-512
 {{- else }}
     # External Kafka Bootstrap Servers
-    kafka.bootstrapServers={{ .Values.kafka.externalSettings.bootstrapServers }}
+    kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}
     kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
     kafka.additional.security.protocol={{ .Values.kafka.externalSettings.securityProtocol | default "SASL_PLAINTEXT" }}
     kafka.additional.sasl.mechanism={{ .Values.kafka.externalSettings.saslMechanism | default "SCRAM-SHA-512" }}

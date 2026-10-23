@@ -24,6 +24,9 @@ data:
     SECRETS_MANAGER_SECRET_NAME="${SECRETS_MANAGER_SECRET_NAME:-{{ .Values.vault.secretsManager.secretName }}}"
     KEY_SHARES="${VAULT_KEY_SHARES:-{{ .Values.vault.setup.keyShares | default 5 }}}"
     KEY_THRESHOLD="${VAULT_KEY_THRESHOLD:-{{ .Values.vault.setup.keyThreshold | default 3 }}}"
+    CERT_MANAGER_SA="{{ include "certificateManager.serviceAccountName" . }}"
+    CERT_MANAGER_TOKEN_SECRET="{{ include "certificateManager.name" . }}-vault-token"
+    NAMESPACE={{ .Release.Namespace }}
 
     log()  { echo "[vault-setup] $*"; }
     fail() { echo "[vault-setup] ERROR: $*" >&2; exit 1; }
@@ -61,6 +64,18 @@ data:
         "${VAULT_ADDR}$1" 2>/dev/null
     }
 
+    write_policy() {
+      policy_name="$1"
+      # Raw, readable Vault policy HCL from the POLICY heredoc.
+      policy_document="$2"
+      # The HTTP API requires policy HCL as a JSON string: escape quotes and
+      # represent line breaks as JSON newline escape sequences while retaining
+      # the readable source above.
+      policy_json="$(printf '%s\n' "$policy_document" | sed 's/"/\\"/g' | awk 'BEGIN { ORS="" } { printf "%s%s", NR == 1 ? "" : "\\n", $0 }')"
+      # Create or update the named ACL policy through Vault's HTTP API.
+      vault_post "/v1/sys/policies/acl/${policy_name}" "{\"policy\":\"${policy_json}\"}" >/dev/null
+    }
+
     park_idle() {
       log "Parking sidecar idle to avoid restart loops."
       while true; do sleep 3600; done
@@ -76,12 +91,9 @@ data:
 
     sts_name="${HOSTNAME%-${ordinal}}"
     sts_name="${sts_name%-}"
-    release_name="${sts_name%-vault}"
-    release_name="${release_name%-}"
-    cert_manager_sa="${release_name}-certificate-manager"
-    cert_manager_token_secret="${release_name}-certificate-manager-vault-token"
+    cert_manager_sa="{{ include "certificateManager.serviceAccountName" . }}"
+    cert_manager_token_secret="{{ include "certificateManager.name" . }}-vault-token"
 
-    namespace="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
 
     log "Phase 1 - Waiting for Vault API (${VAULT_ADDR})"
     n=0
@@ -144,21 +156,21 @@ data:
           ca_cert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
           encoded_payload="$(printf '%s' "$secret_payload" | base64 | tr -d '\n')"
-          secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRETS_MANAGER_SECRET_NAME}\",\"namespace\":\"${namespace}\"},\"type\":\"Opaque\",\"data\":{\"vault-credentials\":\"${encoded_payload}\"}}"
+          secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRETS_MANAGER_SECRET_NAME}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"Opaque\",\"data\":{\"vault-credentials\":\"${encoded_payload}\"}}"
 
-          code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets")"
+          code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets")"
           if [ "$code" = "409" ]; then
-            code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
+            code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
           fi
           if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
             fail "Failed writing k8s secret ${SECRETS_MANAGER_SECRET_NAME} (HTTP ${code})"
           fi
 
           encoded_token="$(printf '%s' "$VAULT_TOKEN" | base64 | tr -d '\n')"
-          cm_secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${cert_manager_token_secret}\",\"namespace\":\"${namespace}\"},\"type\":\"Opaque\",\"data\":{\"vault-token\":\"${encoded_token}\"}}"
-          cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets")"
+          cm_secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${cert_manager_token_secret}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"Opaque\",\"data\":{\"vault-token\":\"${encoded_token}\"}}"
+          cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets")"
           if [ "$cm_code" = "409" ]; then
-            cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${namespace}/secrets/${cert_manager_token_secret}")"
+            cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${cert_manager_token_secret}")"
           fi
           if [ "$cm_code" -lt 200 ] || [ "$cm_code" -ge 300 ]; then
             fail "Failed writing k8s secret ${cert_manager_token_secret} (HTTP ${cm_code})"
@@ -195,7 +207,7 @@ data:
           kube_token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
           kube_api="https://kubernetes.default.svc"
           ca_cert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-          secret_body="$(curl -s --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" "${kube_api}/api/v1/namespaces/${namespace}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
+          secret_body="$(curl -s --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
           encoded_blob="$(printf '%s' "$secret_body" | grep -o '"vault-credentials":"[^"]*"' | head -1 | cut -d'"' -f4)"
           [ -z "$encoded_blob" ] && fail "vault-credentials missing in k8s secret ${SECRETS_MANAGER_SECRET_NAME}"
           sm_json="$(printf '%s' "$encoded_blob" | base64 -d 2>/dev/null || true)"
@@ -274,15 +286,83 @@ data:
     ca_cert="$(awk '{printf "%s\\n", $0}' /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)"
     vault_post /v1/auth/kubernetes/config "{\"kubernetes_host\":\"https://kubernetes.default.svc\",\"kubernetes_ca_cert\":\"${ca_cert}\",\"disable_iss_validation\":true}" >/dev/null
 
-    policy='path \"secret/data/certificate-manager/*\" { capabilities = [\"create\", \"update\", \"read\", \"list\"] } path \"secret/metadata/certificate-manager/*\" { capabilities = [\"list\", \"read\"] } path \"secret/delete/certificate-manager/*\" { capabilities = [\"update\"] } path \"secret/undelete/certificate-manager/*\" { capabilities = [\"update\"] } path \"node-net/data/*\" { capabilities = [\"create\", \"update\", \"read\", \"list\", \"delete\"] } path \"node-net/metadata/*\" { capabilities = [\"list\", \"read\", \"delete\"] } path \"node-net/delete/*\" { capabilities = [\"update\"] } path \"node-net/undelete/*\" { capabilities = [\"update\"] } path \"sys/mounts\" { capabilities = [\"read\"] } path \"sys/mounts/*\" { capabilities = [\"read\"] }'
-    vault_post /v1/sys/policies/acl/certificate-manager "{\"policy\":\"${policy}\"}" >/dev/null
+    certificate_manager_policy="$(cat <<'POLICY'
+    path "secret/data/certificate-manager/*" {
+      capabilities = ["create", "update", "read", "list"]
+    }
 
-    vault_post /v1/auth/kubernetes/role/certificate-manager "{\"bound_service_account_names\":[\"${cert_manager_sa}\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"certificate-manager\"],\"ttl\":\"1h\"}" >/dev/null
+    path "secret/metadata/certificate-manager/*" {
+      capabilities = ["list", "read"]
+    }
+
+    path "secret/delete/certificate-manager/*" {
+      capabilities = ["update"]
+    }
+
+    path "secret/undelete/certificate-manager/*" {
+      capabilities = ["update"]
+    }
+
+    path "node-net/data/*" {
+      capabilities = ["create", "update", "read", "list", "delete"]
+    }
+
+    path "node-net/metadata/*" {
+      capabilities = ["list", "read", "delete"]
+    }
+
+    path "node-net/delete/*" {
+      capabilities = ["update"]
+    }
+
+    path "node-net/undelete/*" {
+      capabilities = ["update"]
+    }
+
+    path "sys/mounts" {
+      capabilities = ["read"]
+    }
+
+    path "sys/mounts/*" {
+      capabilities = ["read"]
+    }
+    POLICY
+    )"
+    write_policy certificate-manager "$certificate_manager_policy"
+
+    certificate_manager_role="$(cat <<ROLE
+    {
+      "bound_service_account_names": ["${CERT_MANAGER_SA}"],
+      "bound_service_account_namespaces": ["${NAMESPACE}"],
+      "policies": ["certificate-manager"],
+      "ttl": "1h"
+    }
+    ROLE
+    )"
+    vault_post /v1/auth/kubernetes/role/certificate-manager "$certificate_manager_role" >/dev/null
 
 {{- if .Values.vault.staticSecrets.enabled }}
-    static_secrets_policy='path \"secret/data/apps/client-server\" { capabilities = [\"read\"] } path \"secret/metadata/apps/client-server\" { capabilities = [\"read\", \"list\"] }'
-    vault_post /v1/sys/policies/acl/federator-suite-client-server-vault-reader '{"policy":"'"${static_secrets_policy}"'"}' >/dev/null
-    vault_post /v1/auth/kubernetes/role/federator-suite-client-server-vault-reader "{\"bound_service_account_names\":[\"federator-suite-vault-internal\"],\"bound_service_account_namespaces\":[\"${namespace}\"],\"policies\":[\"federator-suite-client-server-vault-reader\"],\"ttl\":\"1h\"}" >/dev/null
+    static_secrets_policy="$(cat <<'POLICY'
+    path "secret/data/apps/client-server" {
+      capabilities = ["read"]
+    }
+
+    path "secret/metadata/apps/client-server" {
+      capabilities = ["read", "list"]
+    }
+    POLICY
+    )"
+    write_policy federator-suite-client-server-vault-reader "$static_secrets_policy"
+    client_server_reader_role="$(cat <<ROLE
+    {
+      "bound_service_account_names": ["federator-suite-vault-internal"],
+      "bound_service_account_namespaces": ["${NAMESPACE}"],
+      "policies": ["federator-suite-client-server-vault-reader"],
+      "ttl": "1h"
+    }
+    ROLE
+    )"
+    vault_post /v1/auth/kubernetes/role/federator-suite-client-server-vault-reader "$client_server_reader_role" >/dev/null
 {{- end }}
 
     log "Vault setup complete."

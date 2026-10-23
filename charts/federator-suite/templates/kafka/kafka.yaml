@@ -8,7 +8,7 @@ metadata:
   name: dual-role
   namespace: {{ .Release.Namespace }}
   labels:
-    strimzi.io/cluster: kafka
+    strimzi.io/cluster: {{ include "kafka.name" . }}-kafka
 spec:
   replicas: 1
   roles:
@@ -22,7 +22,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
-  name: kafka
+  name: {{ include "kafka.name" . }}-kafka
   namespace: {{ .Release.Namespace }}
   annotations:
     strimzi.io/node-pools: enabled
@@ -63,7 +63,7 @@ metadata:
   name: kafka-user
   namespace: {{ .Release.Namespace }}
   labels:
-    strimzi.io/cluster: kafka
+    strimzi.io/cluster: {{ include "kafka.name" . }}-kafka
 spec:
   authentication:
     type: scram-sha-512

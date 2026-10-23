@@ -135,7 +135,6 @@ jobs:
             $VALUESPATH/federator.yaml \
             $VALUESPATH/valkey-ui.yaml \
             $VALUESPATH/istio.yaml \
-            $VALUESPATH/overrides/local/local.yaml \
             > $CHART_DIR$PACKAGE_NAME/values.yaml
     
       - name: Helm Package
