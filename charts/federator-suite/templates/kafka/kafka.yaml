@@ -1,0 +1,70 @@
+{{- if not .Values.kafka.external }}
+---
+# Single-node KRaft Kafka cluster. The Strimzi Cluster Operator must already
+# be installed and configured to watch this namespace.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    # Ephemeral storage is suitable only for a disposable development cluster.
+    type: ephemeral
+    sizeLimit: 5Gi
+---
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: kafka
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    version: 4.3.0
+    metadataVersion: 4.3-IV0
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+        authentication:
+          type: scram-sha-512
+        networkPolicyPeers: # see kind:NetworkPolicy
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: {{ .Release.Namespace }}
+    # Kafka's internal topics must be single-replica for a one-node cluster.
+    config: 
+    {{- with .Values.kafka.internalSettings.config }}
+      {{- toYaml . | nindent 6 }}
+    {{- else }}
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+    {{- end }}
+  # The User Operator reconciles KafkaUser resources and creates SCRAM Secrets.
+  entityOperator:
+    userOperator: {}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: kafka-user
+  namespace: {{ .Release.Namespace }}
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  authentication:
+    type: scram-sha-512
+{{- end }}

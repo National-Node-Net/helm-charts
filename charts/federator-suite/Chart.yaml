@@ -2,7 +2,7 @@ apiVersion: v2
 name: federator-suite
 description: Helm chart for Federator application suite (client, server, kafka, valkey, vault, certificate-manager, UIs)
 type: application
-version: 0.2.1
+version: 0.2.2
 appVersion: "0.4.1"
 home: https://github.com/national-node-net/helm-charts
 maintainers:
@@ -10,10 +10,7 @@ maintainers:
     email: contact@ndtp.gov.uk
 
 dependencies:
-  - name: kafka
-    version: "~31.0.0"
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: kafka.enabled
+  # Kafka is provided as default by the Strimzi operator and does not require a Helm chart dependency.
   - name: valkey
     version: "0.1.0"
     repository: "file://charts/valkey"

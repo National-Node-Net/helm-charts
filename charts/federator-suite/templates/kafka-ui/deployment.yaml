@@ -1,4 +1,4 @@
-{{- if .Values.kafkaUi.enabled }}
+{{- if .Values.kafka.ui.enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -10,6 +10,11 @@ metadata:
     {{ include "federator-suite.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: kafka-ui
@@ -21,8 +26,8 @@ spec:
       restartPolicy: Always
       containers:
       - name: kafka-ui
-        image: "{{ .Values.kafkaUi.image.repository }}:{{ .Values.kafkaUi.image.tag }}"
-        imagePullPolicy: {{ .Values.kafkaUi.image.pullPolicy }}
+        image: "{{ .Values.kafka.ui.image.repository }}:{{ .Values.kafka.ui.image.tag }}"
+        imagePullPolicy: {{ .Values.kafka.ui.image.pullPolicy }}
         ports:
         - name: http
           containerPort: 8080
@@ -30,29 +35,41 @@ spec:
         env:
         - name: KAFKA_CLUSTERS_0_NAME
           value: {{ .Values.global.orgName }}
+{{- if not .Values.kafka.external }}
         - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
-          value: {{ include "federator-suite.kafka.bootstrapServers" . }}
-        {{- if not .Values.kafka.external }}
-          {{- if .Values.kafka.sasl }}
-        # In-cluster Bitnami Kafka with SASL auth
+          value: kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL
           value: "SASL_PLAINTEXT"
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM
           value: "SCRAM-SHA-512"
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG
-          value: {{ .Values.secrets.kafkaAuth.jaasConfig | quote }}
-          {{- end }}
-        {{- else }}
-          {{- if .Values.kafka.externalConfig.securityProtocol }}
-        # External Kafka with authentication
+          valueFrom:
+            secretKeyRef:
+              name: kafka-user
+              key: sasl.jaas.config
+{{- else }}
+        - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
+          value: {{ .Values.kafka.externalSettings.bootstrapServers }}
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL
-          value: {{ .Values.kafka.externalConfig.securityProtocol }}
+          value: {{ .Values.kafka.externalSettings.securityProtocol }}
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM
-          value: {{ .Values.kafka.externalConfig.saslMechanism }}
+          value: {{ .Values.kafka.externalSettings.saslMechanism }}
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG
-          value: {{ .Values.secrets.kafkaAuth.jaasConfig | quote }}
-          {{- end }}
-        {{- end }}
+          valueFrom:
+            secretKeyRef:
+              name: federator-runtime-properties
+              key: KAFKA_SASL_JAAS_CONFIG
+{{- end }}
         resources:
-          {{- toYaml .Values.kafkaUi.resources | nindent 10 }}
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
 {{- end }}

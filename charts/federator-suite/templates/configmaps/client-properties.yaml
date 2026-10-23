@@ -9,21 +9,29 @@ metadata:
     {{ include "federator-suite.client.labels" . | nindent 4 }}
 data:
   client.properties: |-
+    # Common Configuration
+    common.configuration=/config/common-configuration.properties
+
     # Kafka Configuration (Sender)
     kafka.sender.defaultKeySerializerClass=org.apache.kafka.common.serialization.BytesSerializer
     kafka.sender.defaultValueSerializerClass=org.apache.kafka.common.serialization.BytesSerializer
-
-    # Kafka Bootstrap Servers
-    kafka.bootstrapServers={{ include "federator-suite.kafka.bootstrapServers" . }}
-    {{- if or .Values.kafka.external (and (not .Values.kafka.external) .Values.kafka.sasl) }}
-    kafka.additional.security.protocol={{ include "federator-suite.kafka.securityProtocol" . }}
-    kafka.additional.sasl.mechanism={{ include "federator-suite.kafka.saslMechanism" . }}
+{{ if not .Values.kafka.external }}
+    # Internal Kafka Bootstrap Servers
+    kafka.bootstrapServers=kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
     kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
-    {{- end }}
-
+    kafka.additional.security.protocol=SASL_PLAINTEXT
+    kafka.additional.sasl.mechanism=SCRAM-SHA-512
+{{- else }}
+    # External Kafka Bootstrap Servers
+    kafka.bootstrapServers={{ .Values.kafka.externalSettings.bootstrapServers }}
+    kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
+    kafka.additional.security.protocol={{ .Values.kafka.externalSettings.securityProtocol | default "SASL_PLAINTEXT" }}
+    kafka.additional.sasl.mechanism={{ .Values.kafka.externalSettings.saslMechanism | default "SCRAM-SHA-512" }}
+{{- end }}  
+   
     # Topic Configuration
-    kafka.topic.prefix={{ include "federator-suite.kafkaTopicPrefix" . }}
-    kafka.consumerGroup={{ .Values.federatorClient.config.consumerGroup | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
+    kafka.topic.prefix={{ .Values.federatorClient.config.kafkaTopicPrefix | default (printf "Deprecated%s" (.Values.global.orgName | upper)) }}
+    kafka.consumerGroup={{ .Values.federatorClient.config.kafkaConsumerGroup | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
 
     # Redis/Valkey Configuration
     {{- $redisTlsEnabled := false -}}
@@ -43,9 +51,6 @@ data:
     redis.username=${VALKEY_USERNAME}
     redis.password=${VALKEY_PASSWORD}
     redis.aes.key=
-
-    # Common Configuration
-    common.configuration=/config/common-configuration.properties
 
     # JobRunr Configuration
     org.jobrunr.jobs.default-allow-concurrent-execution=false
