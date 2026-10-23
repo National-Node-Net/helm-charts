@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kafka-ui
+  name: {{ include "kafkaui.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: kafka-ui
@@ -27,15 +27,13 @@ spec:
       containers:
       - name: kafka-ui
         image: "{{ .Values.kafka.ui.image.repository }}:{{ .Values.kafka.ui.image.tag }}"
-        imagePullPolicy: {{ .Values.kafka.ui.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.kafka.ui.image.pullPolicy | default "IfNotPresent" }}
         ports:
-        - name: http
-          containerPort: 8080
-          protocol: TCP
+          - name: http
+            containerPort: 8080
+            protocol: TCP
         env:
-        - name: KAFKA_CLUSTERS_0_NAME
-          value: {{ .Values.global.orgName }}
-{{- if not .Values.kafka.external }}
+        {{ if not .Values.kafka.external }}
         - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
           value: kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL
@@ -47,19 +45,21 @@ spec:
             secretKeyRef:
               name: kafka-user
               key: sasl.jaas.config
-{{- else }}
+        {{ else }}
         - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
-          value: {{ .Values.kafka.externalSettings.bootstrapServers }}
+          value: {{ .Values.kafka.externalSettings.bootstrapServers | quote }}
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL
-          value: {{ .Values.kafka.externalSettings.securityProtocol }}
+          value: {{ .Values.kafka.externalSettings.securityProtocol | quote }}
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM
-          value: {{ .Values.kafka.externalSettings.saslMechanism }}
+          value: {{ .Values.kafka.externalSettings.saslMechanism | quote }}
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG
           valueFrom:
             secretKeyRef:
               name: federator-runtime-properties
               key: KAFKA_SASL_JAAS_CONFIG
-{{- end }}
+        {{ end }}
+        - name: KAFKA_CLUSTERS_0_NAME
+          value: {{ .Values.global.orgName | quote }}
         resources:
           requests:
             cpu: 50m
