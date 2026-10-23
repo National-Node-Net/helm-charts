@@ -125,11 +125,7 @@ Management Node:
   {{ .Values.global.managementNode.baseUrl }}
 
 Kafka Bootstrap Servers:
-  {{- if .Values.kafka.external }}
-  {{ .Values.kafka.externalSettings.bootstrapServers }}
-  {{- else }}
-  kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
-  {{- end }}
+  {{ include "kafka.bootstrapServers" . }}
 
 Valkey Host:
   {{- if .Values.valkey.external }}

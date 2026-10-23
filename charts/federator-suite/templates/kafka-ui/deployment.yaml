@@ -35,7 +35,7 @@ spec:
         env:
         {{ if not .Values.kafka.external }}
         - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
-          value: kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
+          value: {{ include "kafka.bootstrapServers" . }}
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL
           value: "SASL_PLAINTEXT"
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM

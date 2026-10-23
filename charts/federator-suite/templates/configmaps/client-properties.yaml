@@ -24,13 +24,13 @@ data:
     kafka.sender.defaultValueSerializerClass=org.apache.kafka.common.serialization.BytesSerializer
 {{ if not .Values.kafka.external }}
     # Internal Kafka Bootstrap Servers
-    kafka.bootstrapServers=kafka-kafka-bootstrap.{{ .Release.Namespace }}.svc.cluster.local:9092
+    kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}
     kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
     kafka.additional.security.protocol=SASL_PLAINTEXT
     kafka.additional.sasl.mechanism=SCRAM-SHA-512
 {{- else }}
     # External Kafka Bootstrap Servers
-    kafka.bootstrapServers={{ .Values.kafka.externalSettings.bootstrapServers }}
+    kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}
     kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
     kafka.additional.security.protocol={{ .Values.kafka.externalSettings.securityProtocol | default "SASL_PLAINTEXT" }}
     kafka.additional.sasl.mechanism={{ .Values.kafka.externalSettings.saslMechanism | default "SCRAM-SHA-512" }}
