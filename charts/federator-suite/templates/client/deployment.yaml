@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: federator-client
+  name: {{ include "client.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.client.labels" . | nindent 4 }}
@@ -32,7 +32,7 @@ spec:
         azure.workload.identity/use: "true"
         {{- end }}
     spec:
-      serviceAccountName: {{ include "federator-suite.client.serviceAccountName" . }}
+      serviceAccountName: {{ include "client.serviceAccountName" . }}
       restartPolicy: Always
       {{- with .Values.federatorClient.imagePullSecrets }}
       imagePullSecrets:
@@ -43,7 +43,7 @@ spec:
       containers:
       - name: federator-client
         image: "{{ .Values.federatorClient.image.repository }}:{{ .Values.federatorClient.image.tag }}"
-        imagePullPolicy: {{ .Values.federatorClient.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.federatorClient.image.pullPolicy | default "IfNotPresent" }}
         ports:
         - name: http
           containerPort: {{ .Values.federatorClient.config.serverPort }}
@@ -112,7 +112,7 @@ spec:
         emptyDir: {}
       - name: client-properties-volume
         configMap:
-          name: federator-client-properties     
+          name: {{ include "client.name" . }}-properties     
       - name: federation-cert
         secret:
           secretName: federation-cert

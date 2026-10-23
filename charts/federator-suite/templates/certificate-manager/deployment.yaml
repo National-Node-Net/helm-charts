@@ -40,7 +40,7 @@ spec:
       initContainers:
       - name: wait-for-vault-token
         image: bitnami/kubectl:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .Values.certificateManager.image.pullPolicy | default "IfNotPresent" }}
         # Block until the vault-token secret exists — prevents Spring Cloud Vault failing
         # at startup with "spring.cloud.vault.token is empty". In local mode, the
         # vault-setup sidecar creates this secret after first-time Vault init.

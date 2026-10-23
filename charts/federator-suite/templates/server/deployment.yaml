@@ -43,7 +43,7 @@ spec:
       containers:
       - name: federator-server
         image: "{{ .Values.federatorServer.image.repository }}:{{ .Values.federatorServer.image.tag }}"
-        imagePullPolicy: {{ .Values.federatorServer.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.federatorServer.image.pullPolicy | default "IfNotPresent" }}
         ports:
         - name: http
           containerPort: {{ .Values.federatorServer.config.serverPort }}
