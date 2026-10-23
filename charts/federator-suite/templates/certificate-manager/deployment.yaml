@@ -18,6 +18,7 @@ spec:
   template:
     metadata:
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps/certificate-manager-config.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.certificateManager.podAnnotations }}
         {{- toYaml . | nindent 8 }}
