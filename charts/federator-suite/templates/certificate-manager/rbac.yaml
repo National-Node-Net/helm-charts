@@ -7,7 +7,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "federator-suite.certificateManager.fullname" . }}-secret-reader
+  name: {{ include "certificateManager.name" . }}-secret-reader
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.labels" . | nindent 4 }}
@@ -16,13 +16,13 @@ rules:
 - apiGroups: [""]
   resources: ["secrets"]
   resourceNames:
-  - {{ include "federator-suite.certificateManager.fullname" . }}-vault-token
+  - {{ include "certificateManager.name" . }}-vault-token
   verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "federator-suite.certificateManager.fullname" . }}-secret-reader
+  name: {{ include "certificateManager.name" . }}-secret-reader
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.labels" . | nindent 4 }}
@@ -30,9 +30,9 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "federator-suite.certificateManager.fullname" . }}-secret-reader
+  name: {{ include "certificateManager.name" . }}-secret-reader
 subjects:
 - kind: ServiceAccount
-  name: {{ include "federator-suite.certificateManager.serviceAccountName" . }}
+  name: {{ include "certificateManager.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 {{- end }}

@@ -3,17 +3,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "federator-suite.certificateManager.fullname" . }}
+  name: {{ include "certificateManager.name" .}}
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.labels" . | nindent 4 }}
     app.kubernetes.io/component: certificate-manager
-    app: certificate-manager
+    app: federator-certificate-manager
 spec:
   replicas: {{ .Values.certificateManager.replicaCount | default 1 }}
   selector:
     matchLabels:
-      app: certificate-manager
+      app: federator-certificate-manager
       {{ include "federator-suite.selectorLabels" . | nindent 6 }}
   template:
     metadata:
@@ -24,11 +24,11 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        app: certificate-manager
+        app: federator-certificate-manager
         {{ include "federator-suite.labels" . | nindent 8 }}
         app.kubernetes.io/component: certificate-manager
     spec:
-      serviceAccountName: {{ include "federator-suite.certificateManager.serviceAccountName" . }}
+      serviceAccountName: {{ include "certificateManager.serviceAccountName" . }}
       restartPolicy: Always
       {{- with .Values.certificateManager.imagePullSecrets }}
       imagePullSecrets:
@@ -48,7 +48,7 @@ spec:
         - /bin/sh
         - -c
         - |
-          SECRET={{ include "federator-suite.certificateManager.fullname" . }}-vault-token
+          SECRET={{ include "certificateManager.name" . }}-vault-token
           echo "Waiting for secret $SECRET to exist..."
           until kubectl get secret "$SECRET" -n {{ .Release.Namespace }} > /dev/null 2>&1; do
             echo "  secret not found yet, retrying in 5s..."
@@ -108,11 +108,11 @@ spec:
       volumes:
       - name: cert-storage
         persistentVolumeClaim:
-          claimName: {{ include "federator-suite.certStorage.claimName" . }}
+          claimName: {{ include "certificateManager.claimName" . }}
       {{- if .Values.certificateManager.bootstrapCert.enabled }}
-      - name: bootstrap-cert
-        secret:
-          secretName: {{ .Values.certificateManager.bootstrapCert.secretName | default (printf "%s-bootstrap-cert" (include "federator-suite.certificateManager.fullname" .)) }}
+      # - name: bootstrap-cert
+      #   secret:
+      #     secretName: {{ .Values.certificateManager.bootstrapCert.secretName | default (printf "%s-bootstrap-cert" (include "federator-suite.certificateManager.fullname" .)) }}
       {{- end }}
       {{- with .Values.certificateManager.nodeSelector }}
       nodeSelector:
