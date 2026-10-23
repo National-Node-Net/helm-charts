@@ -90,7 +90,6 @@ certificateManager:
 
     # Certificate generation settings
     cert:
-      outputDir: /certs
       renewalDaysBefore: "30"
       scheduleCron: "0 0 2 * * ?"
       # PLACEHOLDER: Set per environment
@@ -109,12 +108,12 @@ certificateManager:
       intermediateMinValidDays: 14
       destination:
         file:
-          path: /home/developer/test-secrets/
+          path: /certs
           keystoreFile: keystore.p12
           truststoreFile: truststore.p12
           keystoreAlias: federator
         vault:
-          path: /secret/app/cert-manager
+          path: node-net/client
           keystoreFile: keystore.p12
           truststoreFile: truststore.p12
           keystoreAlias: federator
