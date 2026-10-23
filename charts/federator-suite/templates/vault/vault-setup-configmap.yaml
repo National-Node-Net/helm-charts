@@ -90,7 +90,7 @@ data:
     sts_name="${sts_name%-}"
     release_name="${sts_name%-vault}"
     release_name="${release_name%-}"
-    cert_manager_sa="${release_name}-certificate-manager"
+    cert_manager_sa="{{ include "certificateManager.serviceAccountName" . }}"
     cert_manager_token_secret="${release_name}-certificate-manager-vault-token"
 
     namespace="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
