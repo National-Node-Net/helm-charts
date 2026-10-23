@@ -21,7 +21,6 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/server-properties.yaml") . | sha256sum }}
-        checksum/common-configuration: {{ include (print $.Template.BasePath "/configmaps/common-configuration.yaml") . | sha256sum }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.federatorServer.podAnnotations }}
@@ -93,11 +92,7 @@ spec:
         - name: server-properties-volume
           mountPath: /config-templates/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
           subPath: server.properties
-          readOnly: true
-        - name: common-configuration-volume
-          mountPath: /config-templates/common-configuration.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
-          subPath: common-configuration.properties
-          readOnly: true
+          readOnly: true     
         - name: federation-cert
           mountPath: /secrets/federation-cert
           readOnly: true
@@ -116,10 +111,7 @@ spec:
           name: federator-server-properties
       - name: kafka-auth-volume
         secret:
-          secretName: kafka-auth-config
-      - name: common-configuration-volume
-        configMap:
-          name: common-configuration
+          secretName: kafka-auth-config    
       - name: federation-cert
         secret:
           secretName: federation-cert

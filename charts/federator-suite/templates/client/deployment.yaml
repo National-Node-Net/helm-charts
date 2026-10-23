@@ -21,7 +21,6 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/client-properties.yaml") . | sha256sum }}
-        checksum/common-configuration: {{ include (print $.Template.BasePath "/configmaps/common-configuration.yaml") . | sha256sum }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.federatorClient.podAnnotations }}
@@ -97,11 +96,7 @@ spec:
         - name: client-properties-volume
           mountPath: /config-templates/client.properties # if a config appears here, the entrypoint in the client will transform and copy to /config
           subPath: client.properties
-          readOnly: true
-        - name: common-configuration-volume
-          mountPath: /config-templates/common-configuration.properties # if a config appears here, the entrypoint in the client will transform and copy to /config
-          subPath: common-configuration.properties
-          readOnly: true
+          readOnly: true    
         - name: federation-cert
           mountPath: /secrets/federation-cert
           readOnly: true
@@ -117,10 +112,7 @@ spec:
         emptyDir: {}
       - name: client-properties-volume
         configMap:
-          name: federator-client-properties
-      - name: common-configuration-volume
-        configMap:
-          name: common-configuration
+          name: federator-client-properties     
       - name: federation-cert
         secret:
           secretName: federation-cert

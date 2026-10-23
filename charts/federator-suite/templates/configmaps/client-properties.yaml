@@ -9,8 +9,15 @@ metadata:
     {{ include "federator-suite.client.labels" . | nindent 4 }}
 data:
   client.properties: |-
-    # Common Configuration
-    common.configuration=/config/common-configuration.properties
+    # Identity Provider (IDP) Configuration
+    idp.client.id=${IDP_CLIENT_ID}
+    idp.jwks.url=${IDP_JWKS_URL}
+    idp.token.url=${IDP_TOKEN_URL}
+    idp.keystore.path=${IDP_KEYSTORE_PATH}
+    idp.truststore.path=/secrets/federation-cert/keycloak.truststore.jks
+    idp.mtls.enabled=${IDP_MTLS_ENABLED}
+    idp.keystore.password=${IDP_KEYSTORE_PASSWORD}
+    idp.truststore.password=${IDP_TRUSTSTORE_PASSWORD}
 
     # Kafka Configuration (Sender)
     kafka.sender.defaultKeySerializerClass=org.apache.kafka.common.serialization.BytesSerializer
