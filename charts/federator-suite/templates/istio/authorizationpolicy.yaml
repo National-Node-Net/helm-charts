@@ -36,6 +36,13 @@ spec:
           - "*"
 {{- if .Values.serviceMesh.istio.authorizationPolicy.allowedNamespaces }}
 ---
+
+{{- $allowedNamespaces := concat
+      (list .Release.Namespace)
+      (default (list) .Values.serviceMesh.istio.authorizationPolicy.allowedNamespaces)
+      | uniq
+}}
+
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -51,7 +58,8 @@ spec:
     - from:
       - source:
           namespaces:
-          {{- range .Values.serviceMesh.istio.authorizationPolicy.allowedNamespaces }}
+          # by defalt allow this namespace
+          {{- range $allowedNamespaces }}
           - {{ . }}
           {{- end }}
 {{- end }}
