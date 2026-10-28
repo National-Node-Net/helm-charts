@@ -3,31 +3,32 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "federator-suite.certificateManager.fullname" . }}
+  name: {{ include "certificateManager.name" .}}
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.labels" . | nindent 4 }}
     app.kubernetes.io/component: certificate-manager
-    app: certificate-manager
+    app: federator-certificate-manager
 spec:
   replicas: {{ .Values.certificateManager.replicaCount | default 1 }}
   selector:
     matchLabels:
-      app: certificate-manager
+      app: federator-certificate-manager
       {{ include "federator-suite.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps/certificate-manager-config.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.certificateManager.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        app: certificate-manager
+        app: federator-certificate-manager
         {{ include "federator-suite.labels" . | nindent 8 }}
         app.kubernetes.io/component: certificate-manager
     spec:
-      serviceAccountName: {{ include "federator-suite.certificateManager.serviceAccountName" . }}
+      serviceAccountName: {{ include "certificateManager.serviceAccountName" . }}
       restartPolicy: Always
       {{- with .Values.certificateManager.imagePullSecrets }}
       imagePullSecrets:
@@ -39,7 +40,7 @@ spec:
       initContainers:
       - name: wait-for-vault-token
         image: bitnami/kubectl:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .Values.certificateManager.image.pullPolicy | default "IfNotPresent" }}
         # Block until the vault-token secret exists — prevents Spring Cloud Vault failing
         # at startup with "spring.cloud.vault.token is empty". In local mode, the
         # vault-setup sidecar creates this secret after first-time Vault init.
@@ -47,7 +48,7 @@ spec:
         - /bin/sh
         - -c
         - |
-          SECRET={{ include "federator-suite.certificateManager.fullname" . }}-vault-token
+          SECRET={{ include "certificateManager.name" . }}-vault-token
           echo "Waiting for secret $SECRET to exist..."
           until kubectl get secret "$SECRET" -n {{ .Release.Namespace }} > /dev/null 2>&1; do
             echo "  secret not found yet, retrying in 5s..."
@@ -59,68 +60,19 @@ spec:
       - name: certificate-manager
         image: "{{ .Values.certificateManager.image.repository }}:{{ .Values.certificateManager.image.tag }}"
         imagePullPolicy: {{ .Values.certificateManager.image.pullPolicy | default "IfNotPresent" }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "certificateManager.name" . }}-config
         env:
-        # Vault configuration
-        - name: VAULT_ADDR
-          value: {{ include "federator-suite.vault.addr" . }}
-        # Spring Cloud Vault uses VAULT_URI (application.yml: uri: ${VAULT_URI:http://localhost:8200})
-        - name: VAULT_URI
-          value: {{ include "federator-suite.vault.addr" . }}
-        - name: VAULT_KV_PATH
-          value: {{ .Values.certificateManager.config.vault.kvPath | default "secret" | quote }}
-        - name: VAULT_SECRET_PATH
-          value: {{ .Values.certificateManager.config.vault.secretPath | default "node-net/client" | quote }}
         {{- if .Values.certificateManager.vaultToken.useSecret }}
         # TOKEN auth: inject vault token from k8s Secret (created by vault-setup sidecar in local mode)
         # Init container above guarantees this secret exists before this container starts.
         - name: VAULT_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ include "federator-suite.certificateManager.fullname" . }}-vault-token
+              name: {{ include "certificateManager.name" . }}-vault-token
               key: vault-token
         {{- end }}
-        # Vault authentication method — drives Spring Cloud Vault strategy
-        # TOKEN: uses VAULT_TOKEN env var (local/Shamir); KUBERNETES: uses SA JWT (cloud)
-        # Corresponds to application.yml: authentication: ${VAULT_AUTHENTICATION:token}
-        - name: VAULT_AUTHENTICATION
-          value: {{ .Values.certificateManager.config.vault.authentication | default "TOKEN" | upper | quote }}
-        - name: VAULT_AUTH_ROLE
-          value: {{ .Values.certificateManager.config.vault.authRole | default "certificate-manager" | quote }}
-        # Management Node configuration
-        - name: MANAGEMENT_NODE_BASE_URL
-          value: {{ .Values.certificateManager.config.managementNode.baseUrl | default .Values.global.managementNode.baseUrl | quote }}
-        - name: MANAGEMENT_NODE_REQUEST_TIMEOUT
-          value: {{ .Values.certificateManager.config.managementNode.requestTimeout | default "60" | quote }}
-        # OAuth2 configuration
-        {{- if .Values.certificateManager.config.oauth2.enabled }}
-        - name: OAUTH2_ENABLED
-          value: "true"
-        - name: OAUTH2_TOKEN_URI
-          value: {{ .Values.certificateManager.config.oauth2.tokenUri | quote }}
-        - name: OAUTH2_CLIENT_ID
-          value: {{ .Values.certificateManager.config.oauth2.clientId | quote }}
-        {{- end }}
-        # Certificate configuration
-        - name: CERT_OUTPUT_DIR
-          value: {{ .Values.certificateManager.config.cert.outputDir | default "/certs" | quote }}
-        - name: CERT_RENEWAL_DAYS_BEFORE
-          value: {{ .Values.certificateManager.config.cert.renewalDaysBefore | default "30" | quote }}
-        - name: CERT_SCHEDULE_CRON
-          value: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" | quote }}
-        {{- if .Values.certificateManager.config.cert.subjectOrg }}
-        - name: CERT_SUBJECT_ORG
-          value: {{ .Values.certificateManager.config.cert.subjectOrg | quote }}
-        {{- end }}
-        {{- if .Values.certificateManager.config.cert.subjectCountry }}
-        - name: CERT_SUBJECT_COUNTRY
-          value: {{ .Values.certificateManager.config.cert.subjectCountry | quote }}
-        {{- end }}
-        # Spring Boot configuration
-        - name: SPRING_MAIN_WEB_APPLICATION_TYPE
-          value: "none"
-        - name: LOGGING_LEVEL_ROOT
-          value: {{ .Values.certificateManager.config.logLevel | default "INFO" | quote }}
-        # Exec probes for headless scheduler (no HTTP port)
         livenessProbe:
           exec:
             command:
@@ -156,11 +108,11 @@ spec:
       volumes:
       - name: cert-storage
         persistentVolumeClaim:
-          claimName: {{ include "federator-suite.certStorage.claimName" . }}
+          claimName: {{ include "certificateManager.claimName" . }}
       {{- if .Values.certificateManager.bootstrapCert.enabled }}
-      - name: bootstrap-cert
-        secret:
-          secretName: {{ .Values.certificateManager.bootstrapCert.secretName | default (printf "%s-bootstrap-cert" (include "federator-suite.certificateManager.fullname" .)) }}
+      # - name: bootstrap-cert
+      #   secret:
+      #     secretName: {{ .Values.certificateManager.bootstrapCert.secretName | default (printf "%s-bootstrap-cert" (include "federator-suite.certificateManager.fullname" .)) }}
       {{- end }}
       {{- with .Values.certificateManager.nodeSelector }}
       nodeSelector:

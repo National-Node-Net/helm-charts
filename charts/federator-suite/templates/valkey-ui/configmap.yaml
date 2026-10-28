@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: valkey-ui-config
+  name: {{ include "valkeyui.name" . }}-config
   namespace: {{ .Release.Namespace }}
   labels:
     app: valkey-ui

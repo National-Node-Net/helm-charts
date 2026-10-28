@@ -1,0 +1,68 @@
+{{- if .Values.certificateManager.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "certificateManager.name" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "federator-suite.labels" . | nindent 4 }}
+    app.kubernetes.io/component: certificate-manager
+data:
+  # Filesystem destination for generated certificate stores.
+  CERT_DEST_PATH: {{ .Values.certificateManager.config.cert.destination.file.path | default "/certs" | quote }}
+  # Filesystem keystore filename.
+  CERT_DEST_KEYSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.file.keystoreFile | default "keystore.p12" | quote }}
+  # Filesystem truststore filename.
+  CERT_DEST_TRUSTSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.file.truststoreFile | default "truststore.p12" | quote }}
+  # Filesystem keystore key alias.
+  CERT_DEST_KEYSTORE_ALIAS: {{ .Values.certificateManager.config.cert.destination.file.keystoreAlias | default "federator" | quote }}
+  # Vault KV v2 destination for generated certificate stores.
+  CERT_DEST_VAULT_PATH: {{ .Values.certificateManager.config.cert.destination.vault.path | default "node-net/client" | quote }}
+  # Vault keystore attribute name.
+  CERT_DEST_VAULT_KEYSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.vault.keystoreFile | default "keystore.p12" | quote }}
+  # Vault truststore attribute name.
+  CERT_DEST_VAULT_TRUSTSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.vault.truststoreFile | default "truststore.p12" | quote }}
+  # Vault keystore key alias.
+  CERT_DEST_VAULT_KEYSTORE_ALIAS: {{ .Values.certificateManager.config.cert.destination.vault.keystoreAlias | default "federator" | quote }}
+  # Days before certificate renewal.
+  CERT_RENEWAL_DAYS_BEFORE: {{ .Values.certificateManager.config.cert.renewalDaysBefore | default "30" | quote }}
+  # Certificate scheduler expression.
+  CERT_SCHEDULE_CRON: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" | quote }}
+  {{- if .Values.certificateManager.config.cert.subjectCountry }}
+  # Certificate subject country.
+  CERT_SUBJECT_COUNTRY: {{ .Values.certificateManager.config.cert.subjectCountry | quote }}
+  {{- end }}
+  {{- if .Values.certificateManager.config.cert.subjectOrg }}
+  # Certificate subject organisation.
+  CERT_SUBJECT_ORG: {{ .Values.certificateManager.config.cert.subjectOrg | quote }}
+  {{- end }}
+  # Root application log level.
+  LOGGING_LEVEL_ROOT: {{ .Values.certificateManager.config.logLevel | default "INFO" | quote }}
+  # Management Node base URL.
+  MANAGEMENT_NODE_BASE_URL: {{ .Values.certificateManager.config.managementNode.baseUrl | default .Values.global.managementNode.baseUrl | quote }}
+  # Management Node request timeout.
+  MANAGEMENT_NODE_REQUEST_TIMEOUT: {{ .Values.certificateManager.config.managementNode.requestTimeout | default "60" | quote }}
+  {{- if .Values.certificateManager.config.oauth2.enabled }}
+  # Enable Management Node OAuth.
+  OAUTH2_ENABLED: "true"
+  # Management Node OAuth client ID.
+  OAUTH2_CLIENT_ID: {{ .Values.certificateManager.config.oauth2.clientId | quote }}
+  # Management Node OAuth token endpoint.
+  OAUTH2_TOKEN_URI: {{ .Values.certificateManager.config.oauth2.tokenUri | quote }}
+  {{- end }}
+  # Disable the Spring web server.
+  SPRING_MAIN_WEB_APPLICATION_TYPE: "none"
+  # Vault API address.
+  VAULT_ADDR: {{ include "federator-suite.vault.addr" . | quote }}
+  # Vault authentication method.
+  VAULT_AUTHENTICATION: {{ .Values.certificateManager.config.vault.authentication | default "KUBERNETES" | upper | quote }}
+  # Vault Kubernetes auth role.
+  VAULT_AUTH_ROLE: {{ .Values.certificateManager.config.vault.authRole | default "certificate-manager" | quote }}
+  # Vault KV v2 mount.
+  VAULT_KV_PATH: {{ .Values.certificateManager.config.vault.kvPath | default "secret" | quote }}
+  # Vault secret source path.
+  VAULT_SECRET_PATH: {{ .Values.certificateManager.config.vault.secretPath | default "node-net/client" | quote }}
+  # Vault API address.
+  VAULT_URI: {{ include "federator-suite.vault.addr" . | quote }}
+{{- end }}

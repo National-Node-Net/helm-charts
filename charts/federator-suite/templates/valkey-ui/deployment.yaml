@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: valkey-ui
+  name: {{ include "valkeyui.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: valkey-ui
@@ -23,7 +23,7 @@ spec:
       containers:
       - name: valkey-ui
         image: "{{ .Values.valkeyUi.image.repository }}:{{ .Values.valkeyUi.image.tag }}"
-        imagePullPolicy: {{ .Values.valkeyUi.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.valkeyUi.image.pullPolicy | default "IfNotPresent" }}
         ports:
         - name: http
           containerPort: 5540
@@ -98,7 +98,7 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: valkey-ui-config
+          name: {{ include "valkeyui.name" . }}-config
       - name: redisinsight-config
         emptyDir: {}
       {{- end }}

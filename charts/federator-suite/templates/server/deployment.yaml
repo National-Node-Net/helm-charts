@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: federator-server
+  name: {{ include "server.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.server.labels" . | nindent 4 }}
@@ -21,7 +21,6 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/server-properties.yaml") . | sha256sum }}
-        checksum/common-configuration: {{ include (print $.Template.BasePath "/configmaps/common-configuration.yaml") . | sha256sum }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.federatorServer.podAnnotations }}
@@ -33,7 +32,7 @@ spec:
         azure.workload.identity/use: "true"
         {{- end }}
     spec:
-      serviceAccountName: {{ include "federator-suite.server.serviceAccountName" . }}
+      serviceAccountName: {{ include "server.serviceAccountName" . }}
       restartPolicy: Always
       {{- with .Values.federatorServer.imagePullSecrets }}
       imagePullSecrets:
@@ -44,7 +43,7 @@ spec:
       containers:
       - name: federator-server
         image: "{{ .Values.federatorServer.image.repository }}:{{ .Values.federatorServer.image.tag }}"
-        imagePullPolicy: {{ .Values.federatorServer.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.federatorServer.image.pullPolicy | default "IfNotPresent" }}
         ports:
         - name: http
           containerPort: {{ .Values.federatorServer.config.serverPort }}
@@ -93,11 +92,7 @@ spec:
         - name: server-properties-volume
           mountPath: /config-templates/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
           subPath: server.properties
-          readOnly: true
-        - name: common-configuration-volume
-          mountPath: /config-templates/common-configuration.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
-          subPath: common-configuration.properties
-          readOnly: true
+          readOnly: true     
         - name: federation-cert
           mountPath: /secrets/federation-cert
           readOnly: true
@@ -113,13 +108,10 @@ spec:
         emptyDir: {}
       - name: server-properties-volume
         configMap:
-          name: federator-server-properties
+          name: {{ include "server.name" . }}-properties
       - name: kafka-auth-volume
         secret:
-          secretName: kafka-auth-config
-      - name: common-configuration-volume
-        configMap:
-          name: common-configuration
+          secretName: kafka-auth-config    
       - name: federation-cert
         secret:
           secretName: federation-cert
