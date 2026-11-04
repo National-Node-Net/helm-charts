@@ -48,13 +48,13 @@ data:
 
 {{ if not .Values.valkey.external }}
     # Internal Redis/Valkey Configuration
-     redis.host={{ include "valkey.hostname" . }}
-     redis.port={{ .Values.valkey.valkey.service.port }}
-     redis.tls.enabled=false
-     redis.prefix={{ .Values.federatorServer.config.redisPrefix }}
-     redis.username=${VALKEY_USERNAME}
-     redis.password=${VALKEY_PASSWORD}
-     redis.aes.key=
+    redis.host={{ include "valkey.hostname" . }}
+    redis.port={{ .Values.valkey.valkey.service.port }}
+    redis.tls.enabled=false
+    redis.prefix={{ .Values.federatorServer.config.redisPrefix }}
+    redis.username=${VALKEY_USERNAME}
+    redis.password=${VALKEY_PASSWORD}
+    redis.aes.key=
 {{- else }}
     # External Redis/Valkey Configuration
     redis.host={{ include "valkey.hostname" . }}
