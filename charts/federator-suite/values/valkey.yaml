@@ -11,6 +11,8 @@ valkey:
     ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties
   valkey:
     # provide the necessary configuration for the local Valkey deployment
+    service:
+      port: 6379
     replica:
       enabled: true
       replicas: 2
