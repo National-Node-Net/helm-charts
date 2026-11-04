@@ -11,6 +11,10 @@ metadata:
     app: federator-certificate-manager
 spec:
   replicas: {{ .Values.certificateManager.replicaCount | default 1 }}
+  # Certificate-manager is a singleton using an RWO PVC; terminate the old pod
+  # before starting its replacement so EBS can detach and reattach the volume.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: federator-certificate-manager
