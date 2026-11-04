@@ -1,0 +1,32 @@
+{{- if .Values.vault.staticSecrets.enabled }}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: federator-suite-kafka-auth
+  namespace: {{ .Release.Namespace }}
+spec:
+  vaultAuthRef: federator-suite-vault-internal
+  mount: secret
+  path: /apps/client-server
+  type: kv-v2
+  refreshAfter: 30s
+  destination:
+    name: kafka-auth-config
+    create: true
+    overwrite: true
+    rolloutRestartTargets:
+      - kind: Deployment
+        name: federator-server
+      - kind: Deployment
+        name: federator-client
+    transformation:
+      excludeRaw: true
+      excludes:
+        - '.*'
+      templates:
+        kafka-auth.properties:
+          text: |
+            kafka.additional.security.protocol={{ "{{ get .Secrets \"kafkaAuth_securityProtocol\" }}" }}
+            kafka.additional.sasl.mechanism={{ "{{ get .Secrets \"kafkaAuth_saslMechanism\" }}" }}
+            kafka.additional.sasl.jaas.config={{ "{{ get .Secrets \"kafkaAuth_jaasConfig\" }}" }}
+{{- end }}

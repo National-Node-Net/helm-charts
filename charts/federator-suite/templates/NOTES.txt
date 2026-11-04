@@ -19,7 +19,7 @@ DEPLOYMENT STATUS
 --------------------------------------------------------------------------------
 
 Kafka:    {{ if not .Values.kafka.external }}In-Cluster (Strimzi){{ else }}External ({{ .Values.kafka.externalSettings.bootstrapServers }}){{ end }}
-Valkey:   {{ if not .Values.valkey.external }}In-Cluster (Bitnami){{ else }}External ({{ .Values.valkey.externalConfig.host }}:{{ .Values.valkey.externalConfig.port | default 6379 }}){{ end }}
+Valkey:   {{ if not .Values.valkey.external }}In-Cluster (Valkey){{ else }}External ({{ .Values.valkey.externalSettings.host }}:{{ .Values.valkey.externalSettings.port | default 6379 }}){{ end }}
 Istio:    {{ if $istioEnabled }}Enabled{{ else }}Disabled{{ end }}
 
 Components Deployed:
@@ -129,9 +129,9 @@ Kafka Bootstrap Servers:
 
 Valkey Host:
   {{- if .Values.valkey.external }}
-  {{ .Values.valkey.externalConfig.host }}:{{ .Values.valkey.externalConfig.port | default 6379 }}
+  {{ .Values.valkey.externalSettings.host }}:{{ .Values.valkey.externalSettings.port | default 6379 }}
   {{- else }}
-  {{ .Release.Name }}-valkey-primary:6379
+  {{ .Release.Name }}-valkey:6379
   {{- end }}
 
 Security Protocol:

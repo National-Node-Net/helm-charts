@@ -46,6 +46,26 @@ data:
     kafka.additional.sasl.mechanism={{ .Values.kafka.externalSettings.saslMechanism | default "SCRAM-SHA-512" }}
 {{- end }} 
 
+{{ if not .Values.valkey.external }}
+    # Internal Redis/Valkey Configuration
+     redis.host={{ include "valkey.hostname" . }}
+     redis.port={{ .Values.valkey.valkey.service.port }}
+     redis.tls.enabled=false
+     redis.prefix={{ .Values.federatorServer.config.redisPrefix }}
+     redis.username=${VALKEY_USERNAME}
+     redis.password=${VALKEY_PASSWORD}
+     redis.aes.key=
+{{- else }}
+    # External Redis/Valkey Configuration
+    redis.host={{ include "valkey.hostname" . }}
+    redis.port={{ .Values.valkey.externalSettings.port }}
+    redis.tls.enabled={{ .Values.valkey.externalSettings.tlsEnabled | default false }}
+    redis.prefix={{ .Values.federatorServer.config.redisPrefix }}
+    redis.username=${VALKEY_USERNAME}
+    redis.password=${VALKEY_PASSWORD}
+    redis.aes.key=
+{{- end}}
+
     # Server Configuration
     server.port={{ .Values.federatorServer.config.serverPort }}
     server.keepAliveTime={{ .Values.federatorServer.config.keepAliveTime | default 10 }}
@@ -67,25 +87,7 @@ data:
     management.node.cache.ttl.seconds=60
     management.node.request.timeout=60
     management.node.base.url={{ .Values.global.managementNode.baseUrl }}
-
-    # Redis/Valkey Configuration
-    {{- $redisTlsEnabled := false -}}
-    {{- if .Values.valkey.external }}
-    {{- if kindIs "bool" .Values.valkey.external }}
-    {{- $redisTlsEnabled = true }}
-    {{- else if .Values.valkey.external.enabled }}
-    {{- $redisTlsEnabled = true }}
-    {{- end }}
-    {{- else if and .Values.valkey.enabled .Values.valkey.valkey.primary.tls }}
-    {{- $redisTlsEnabled = .Values.valkey.valkey.primary.tls.enabled }}
-    {{- end }}
-    redis.host={{ include "federator-suite.valkey.host" . }}
-    redis.port={{ include "federator-suite.valkey.port" . }}
-    redis.tls.enabled={{ ternary "true" "false" $redisTlsEnabled }}
-    redis.prefix={{ .Values.federatorServer.config.redisPrefix | default (printf "federator-server-%s" (.Values.global.orgName | lower)) }}
-    redis.username=${VALKEY_USERNAME}
-    redis.password=${VALKEY_PASSWORD}
-
+  
     # File Storage Configuration
     file.stream.chunk.size=1000
     {{- if eq (.Values.federatorServer.config.storage.provider | upper) "S3" }}

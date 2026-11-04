@@ -10,13 +10,12 @@ maintainers:
     email: contact@ndtp.gov.uk
 
 dependencies:
-  # Kafka is provided as default by the Strimzi operator and does not require a Helm chart dependency.
-  - name: valkey
-    version: "0.1.0"
-    repository: "file://charts/valkey"
-    condition: valkey.enabled
+  # Kafka is provided as default by the Strimzi operator and does not require a Helm chart dependency. 
   - name: vault
     version: "0.1.0"
     repository: "file://charts/vault"
     condition: vault.enabled
-
+  - name: valkey
+    version: "0.1.2"
+    repository: "file://charts/valkey"
+    condition: valkey.enabled

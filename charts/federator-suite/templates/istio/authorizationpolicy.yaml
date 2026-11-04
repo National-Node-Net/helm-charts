@@ -46,7 +46,7 @@ spec:
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
-  name: federator-server-allow-cross-namespace
+  name: allow-cross-namespace-to-federator-server
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "federator-suite.labels" . | nindent 4 }}

@@ -1,0 +1,39 @@
+{{- if .Values.vault.staticSecrets.enabled }}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: federator-suite-federation-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  vaultAuthRef: federator-suite-vault-internal
+  mount: secret
+  path: /apps/client-server
+  type: kv-v2
+  refreshAfter: 30s
+  destination:
+    name: federation-cert
+    create: true
+    overwrite: true
+    rolloutRestartTargets:
+      - kind: Deployment
+        name: federator-server
+      - kind: Deployment
+        name: federator-client
+    transformation:
+      excludeRaw: true
+      excludes:
+        - '.*'
+      templates:
+        client-keystore.password:
+          text: {{ "{{ get .Secrets \"certificates_clientKeystorePassword\" }}" | quote }}
+        client-org1-keystore.jks:
+          text: {{ "{{ get .Secrets \"certificates_clientKeystoreJks\" | b64dec }}" | quote }}
+        keycloak.truststore.jks:
+          text: {{ "{{ get .Secrets \"certificates_truststoreJks\" | b64dec }}" | quote }}
+        keystore.password:
+          text: {{ "{{ get .Secrets \"certificates_serverKeystorePassword\" }}" | quote }}
+        ndtp-keystore.jks:
+          text: {{ "{{ get .Secrets \"certificates_serverKeystoreJks\" | b64dec }}" | quote }}
+        truststore.password:
+          text: {{ "{{ get .Secrets \"certificates_truststorePassword\" }}" | quote }}
+{{- end }}

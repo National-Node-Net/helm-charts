@@ -275,6 +275,44 @@ data:
       log "KV v2 mount node-net/ already present."
     fi
 
+{{- if not .Values.valkey.external }}
+    # Keep the internal Valkey passwords Base64-safe: 32 characters from the
+    # standard Base64 alphabet, with no other shell- or Redis-sensitive bytes.
+    vault_post /v1/sys/policies/password/valkey-password \
+      '{"policy":"length = 32\nrule \"charset\" {\n  charset = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\"\n}\n"}' \
+      >/dev/null
+
+    valkey_secret="$(vault_get /v1/secret/data/apps/valkey)"
+    valkey_username="$(json_val valkey_username "$valkey_secret")"
+    valkey_password="$(json_val valkey_password "$valkey_secret")"
+    sentinel_username="$(json_val sentinel_username "$valkey_secret")"
+    sentinel_password="$(json_val sentinel_password "$valkey_secret")"
+
+    if [ -n "$valkey_username" ] && [ -n "$valkey_password" ] && \
+       [ -n "$sentinel_username" ] && [ -n "$sentinel_password" ]; then
+      log "Internal Valkey and Sentinel credentials already exist in secret/apps/valkey."
+    else
+      [ -n "$valkey_username" ] || valkey_username="default"
+      [ -n "$sentinel_username" ] || sentinel_username="default"
+
+      if [ -z "$valkey_password" ]; then
+        password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
+        valkey_password="$(json_val password "$password_response")"
+        [ -n "$valkey_password" ] || fail "Vault did not generate a Valkey password"
+      fi
+      if [ -z "$sentinel_password" ]; then
+        password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
+        sentinel_password="$(json_val password "$password_response")"
+        [ -n "$sentinel_password" ] || fail "Vault did not generate a Sentinel password"
+      fi
+
+      vault_post /v1/secret/data/apps/valkey \
+        "{\"data\":{\"valkey_username\":\"${valkey_username}\",\"valkey_password\":\"${valkey_password}\",\"sentinel_username\":\"${sentinel_username}\",\"sentinel_password\":\"${sentinel_password}\"}}" \
+        >/dev/null
+      log "Created internal Valkey and Sentinel credentials in secret/apps/valkey."
+    fi
+{{- end }}
+
     auth_methods="$(vault_get /v1/sys/auth)"
     if ! printf '%s' "$auth_methods" | grep -q '"kubernetes/"'; then
       vault_post /v1/sys/auth/kubernetes '{"type":"kubernetes"}' >/dev/null
@@ -344,6 +382,10 @@ data:
 {{- if .Values.vault.staticSecrets.enabled }}
     static_secrets_policy="$(cat <<'POLICY'
     path "secret/data/apps/client-server" {
+      capabilities = ["read"]
+    }
+    
+    path "secret/data/apps/valkey" {
       capabilities = ["read"]
     }
 

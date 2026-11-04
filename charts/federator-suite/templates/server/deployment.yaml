@@ -62,6 +62,21 @@ spec:
               name: kafka-user
               key: sasl.jaas.config
         {{- end }}
+
+        {{- if not .Values.valkey.external }}
+        # if we are using the bundled valkey we need to set the VALKEY_* environment variables from the valkey secret
+        # this is automatically injected from the valkey secret which is created by the valkey VaultStaticSecret
+        - name: VALKEY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: valkey-secrets
+              key: valkey_password
+        - name: VALKEY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: valkey-secrets
+              key: valkey_username
+        {{- end }}
         
         # the app doesnt read any env-vars directly - all the env vars we have are injected via the runtime secret
         # and used via envsubst to update the configuration files in /config
