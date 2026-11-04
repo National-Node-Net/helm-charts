@@ -1,3 +1,5 @@
+{{- if .Values.serviceMesh.istio.enabled }}
+
 # Vault deliberately bypasses Istio interception on ports 8200 and 8201.
 #
 # The Vault listener is configured with `tls_disable = 1`, so its API listener
@@ -23,9 +25,10 @@ apiVersion: networking.istio.io/v1
 kind: DestinationRule
 metadata:
   name: vault-active-plaintext
-  namespace: helm-federator-suite-bcc
+  namespace: {{ .Release.Namespace }}
 spec:
-  host: fs-bcc-vault-active.helm-federator-suite-bcc.svc.cluster.local
+  host: {{ printf "%s-vault-active.%s.svc.cluster.local" .Release.Name .Release.Namespace }}
   trafficPolicy:
     tls:
       mode: DISABLE
+{{- end }}
