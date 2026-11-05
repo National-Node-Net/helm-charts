@@ -136,72 +136,14 @@ Generic resource name helper (with release prefix)
 
 
 
-{{/*
-Valkey host
-*/}}
-{{- define "federator-suite.valkey.host" -}}
-{{- if .Values.valkey.external }}
-{{- .Values.valkey.externalConfig.host }}
-{{- else }}
-{{- printf "%s-valkey-primary" .Release.Name }}
-{{- end }}
-{{- end }}
 
-{{/*
-Valkey port
-*/}}
-{{- define "federator-suite.valkey.port" -}}
-{{- if .Values.valkey.external }}
-{{- .Values.valkey.externalConfig.port | default 6379 }}
-{{- else }}
-{{- .Values.valkey.valkey.primary.service.port | default 6379 }}
-{{- end }}
-{{- end }}
-
-{{/*
-Valkey password (from secret or plain value)
-*/}}
-{{- define "federator-suite.valkey.password" -}}
-{{- if .Values.valkey.external }}
-{{- if .Values.valkey.externalConfig.auth.enabled }}
-{{- .Values.secrets.valkeyAuth.token | default .Values.valkey.externalConfig.auth.token }}
-{{- else }}
-{{- "" }}
-{{- end }}
-{{- else }}
-{{- if .Values.valkey.valkey.auth.enabled }}
-{{- .Values.valkey.valkey.auth.password }}
-{{- else }}
-{{- "" }}
-{{- end }}
-{{- end }}
-{{- end }}
-
-{{/*
-Get Valkey/Redis username
-*/}}
-{{- define "federator-suite.valkey.username" -}}
-{{- if .Values.valkey.external }}
-{{- if .Values.valkey.externalConfig.auth.enabled }}
-{{- .Values.valkey.externalConfig.auth.username | default "default" }}
-{{- else }}
-{{- "" }}
-{{- end }}
-{{- else }}
-{{- if .Values.valkey.valkey.auth.enabled }}
-{{- .Values.valkey.valkey.auth.username | default "" }}
-{{- else }}
-{{- "" }}
-{{- end }}
-{{- end }}
-{{- end }}
 
 {{/*
 Validate configuration - basic checks
 */}}
 {{- define "federator-suite.validateConfig" -}}
-{{- if and .Values.valkey.external (not .Values.valkey.externalConfig.host) }}
-{{- fail "ERROR: valkey.external is true but valkey.externalConfig.host is not set" }}
+{{- if and .Values.valkey.external (not .Values.valkey.externalSettings.host) }}
+{{- fail "ERROR: valkey.external is true but valkey.externalSettings.host is not set" }}
 {{- end }}
 {{- /* Vault validation (always enabled) — cloud provider derived from global.clusterType */ -}}
 {{- if not .Values.vault.devMode }}

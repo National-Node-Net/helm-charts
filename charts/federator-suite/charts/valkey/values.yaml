@@ -1,66 +1,70 @@
-# Valkey Subchart Values
-# This subchart wraps Bitnami Valkey chart
+# Local wrapper for the official Valkey Helm chart.
+# The parent chart controls this with `valkey.enabled`.
+enabled: false
 
-enabled: false  # Controlled by parent values-valkey.yaml
-
-# Allow Bitnami Legacy images (moved from bitnami/* to bitnamilegacy/*)
-global:
-  security:
-    allowInsecureImages: true
-
-# Bitnami Valkey configuration
 valkey:
-  enabled: true
-  
-  # Use Bitnami Legacy image
-  image:
-    registry: docker.io
-    repository: bitnami/valkey
-    tag: "latest"
-  
-  # Architecture: standalone or replication
-  architecture: standalone
-  
-  # Authentication disabled for local development
+  # Valkey 0.12.1: replicated deployment (one primary and two replicas).
+  # This chart version does not provide Sentinel or HAProxy.
   auth:
-    enabled: false
-  
-  # Master configuration
-  master:
-    service:
-      type: ClusterIP
-      port: 6379
-    
-    persistence:
-      enabled: false
-      size: 1Gi
-    
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        cpu: 250m
-        memory: 256Mi
-  
-  # Replica configuration (for replication mode)
+    enabled: true
+    usersExistingSecret: valkey-secrets
+    aclUsers:
+      default:
+        permissions: "~* &* +@all"
+        passwordKey: valkey_password
+
   replica:
-    replicaCount: 0
+    enabled: true
+    replicas: 2
+    replicationUser: default
+    minReplicasToWrite: 1
+    minReplicasMaxLag: 10
     persistence:
-      enabled: true
-      size: 8Gi
-    
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 250m
-        memory: 256Mi
-  
-  # Common configuration
-  commonConfiguration: |-
-    # Enable AOF persistence
-    appendonly yes
-    # Disable RDB snapshots for simplicity
-    save ""
+      storageClass: auto-ebs-sc2
+      size: 1Gi
+      accessModes:
+        - ReadWriteOnce
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+  podLabels:
+    workload: valkey-data
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          workload: valkey-data
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          workload: valkey-data
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  service:
+    type: ClusterIP
+    port: 6379
+
+  metrics:
+    enabled: false # at this time turn off metrics
+    serviceMonitor:
+      enabled: false
+
+  tls:
+    enabled: false
+

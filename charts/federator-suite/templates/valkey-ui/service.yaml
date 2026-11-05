@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: valkey-ui
+  name: {{ include "valkeyui.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: valkey-ui

@@ -61,7 +61,7 @@ certificateManager:
 
   # ── Application Configuration ──────────────────────────────────────────────
   config:
-    logLevel: INFO
+    applicationName: certificate-manager
 
     # Vault settings
     vault:
@@ -73,6 +73,7 @@ certificateManager:
       # authentication: TOKEN for Shamir/local (reads VAULT_TOKEN), KUBERNETES for cloud k8s auth
       authentication: KUBERNETES
       authRole: certificate-manager
+      pkiMount: pki-client
 
     # Management Node connectivity
     managementNode:
@@ -89,18 +90,72 @@ certificateManager:
 
     # Certificate generation settings
     cert:
-      outputDir: /certs
       renewalDaysBefore: "30"
       scheduleCron: "0 0 2 * * ?"
       # PLACEHOLDER: Set per environment
       subjectOrg: ""
       subjectCountry: ""
-
+      renewalRate: 3600000
+      syncRate: 60000
+      renewalThreshold: 10
+      keySize: 2048
+      subjectState: South Yorkshire
+      subjectLocality: Sheffield
+      subjectOrganizationalUnit: Platform Engineering
+      subjectCommonName: api.acme-digital.co.uk
+      subjectAltNames: api.acme-digital.co.uk,api.internal.acme-digital.co.uk
+      bootstrapOid: 1.3.6.1.4.1.32473.1.1
+      intermediateMinValidDays: 14
+      destination:
+        file:
+          path: /certs
+          keystoreFile: keystore.p12
+          truststoreFile: truststore.p12
+          keystoreAlias: federator
+        vault:
+          path: node-net/client
+          keystoreFile: keystore.p12
+          truststoreFile: truststore.p12
+          keystoreAlias: federator
 
     mtls:
-      keystorePath: ""     
-      truststorePath: ""  
+      keystorePath: /home/developer/Downloads/managementNode/docker/mtls-keystore.p12
+      truststorePath: /home/developer/Downloads/managementNode/docker/mtls-truststore.p12
       keystoreType: "PKCS12"
+
+    resilience:
+      managementNode:
+        retryMaxAttempts: 3
+        retryWait: 500ms
+        retryMultiplier: 2
+        circuitBreakerFailureRate: 50
+        circuitBreakerWindowSize: 10
+        circuitBreakerMinCalls: 10
+        circuitBreakerHalfOpenCalls: 3
+        circuitBreakerWaitOpen: 10s
+      vault:
+        retryMaxAttempts: 3
+        retryWait: 500ms
+        retryMultiplier: 2
+        circuitBreakerFailureRate: 50
+        circuitBreakerWindowSize: 10
+        circuitBreakerMinCalls: 10
+        circuitBreakerHalfOpenCalls: 3
+        circuitBreakerWaitOpen: 10s
+      oauth2:
+        retryMaxAttempts: 3
+        retryWait: 500ms
+        retryMultiplier: 2
+        circuitBreakerFailureRate: 50
+        circuitBreakerWindowSize: 10
+        circuitBreakerMinCalls: 10
+        circuitBreakerHalfOpenCalls: 3
+        circuitBreakerWaitOpen: 10s
+
+    logging:
+      springSecurity: DEBUG
+      application: DEBUG
+      resilience4j: DEBUG
 
   # ── Vault Token (TOKEN auth mode only) ──────────────────────────────────────
   # Used when config.vault.authentication=TOKEN (local/dev without k8s auth).

@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: opa
+  name: {{ include "opa.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.labels" . | nindent 4 }}
@@ -96,5 +96,5 @@ spec:
       volumes:
         - name: opa-policies
           configMap:
-            name: opa-policies
+            name: {{ include "opa.name" . }}-policies
 {{- end }}

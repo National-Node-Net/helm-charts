@@ -85,8 +85,6 @@ federatorServer:
     filterShareAll: false
     
     # Redis/Valkey configuration
-    redisPort: 6379
-    redisTlsEnabled: false
     redisPrefix: "federator-server"  # Override per org
     
     # Jobs dashboard (JobRunr)
@@ -204,10 +202,7 @@ federatorClient:
     kafkaValueSerializer: org.apache.kafka.common.serialization.BytesSerializer
     
     # Redis/Valkey configuration
-    redisPort: 6379
-    redisTlsEnabled: false
     redisPrefix: "federator-client"  # Override per org
-    redisAesKey: ""
     
     # mTLS Configuration
     mtlsEnabled: true

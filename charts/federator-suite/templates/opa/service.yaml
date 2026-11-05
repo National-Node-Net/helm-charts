@@ -4,7 +4,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: opa
+  name: {{ include "opa.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.labels" . | nindent 4 }}

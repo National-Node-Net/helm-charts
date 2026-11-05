@@ -8,7 +8,7 @@ metadata:
   name: dual-role
   namespace: {{ .Release.Namespace }}
   labels:
-    strimzi.io/cluster: kafka
+    strimzi.io/cluster: {{ include "kafka.name" . }}-kafka
 spec:
   replicas: 1
   roles:
@@ -22,7 +22,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
-  name: kafka
+  name: {{ include "kafka.name" . }}-kafka
   namespace: {{ .Release.Namespace }}
   annotations:
     strimzi.io/node-pools: enabled
@@ -31,6 +31,12 @@ spec:
   kafka:
     version: 4.3.0
     metadataVersion: 4.3-IV0
+    template:
+      pod:
+        metadata:
+          # Strimzi applies pod-template labels to the generated broker pods.
+          labels:
+            sidecar.istio.io/inject: "false"
     listeners:
       - name: plain
         port: 9092
@@ -38,12 +44,12 @@ spec:
         tls: false
         authentication:
           type: scram-sha-512
-        networkPolicyPeers: # see kind:NetworkPolicy
+        networkPolicyPeers:
           - namespaceSelector:
               matchLabels:
                 kubernetes.io/metadata.name: {{ .Release.Namespace }}
     # Kafka's internal topics must be single-replica for a one-node cluster.
-    config: 
+    config:
     {{- with .Values.kafka.internalSettings.config }}
       {{- toYaml . | nindent 6 }}
     {{- else }}
@@ -55,6 +61,12 @@ spec:
     {{- end }}
   # The User Operator reconciles KafkaUser resources and creates SCRAM Secrets.
   entityOperator:
+    template:
+      pod:
+        metadata:
+          # The Entity Operator must also stay outside the Istio mesh.
+          labels:
+            sidecar.istio.io/inject: "false"
     userOperator: {}
 ---
 apiVersion: kafka.strimzi.io/v1
@@ -63,7 +75,7 @@ metadata:
   name: kafka-user
   namespace: {{ .Release.Namespace }}
   labels:
-    strimzi.io/cluster: kafka
+    strimzi.io/cluster: {{ include "kafka.name" . }}-kafka
 spec:
   authentication:
     type: scram-sha-512
