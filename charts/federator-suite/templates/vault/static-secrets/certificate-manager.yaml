@@ -1,11 +1,11 @@
-{{- if .Values.vault.staticSecrets.enabled }}
+{{- if and .Values.vault.staticSecrets.enabled .Values.certificateManager.enabled }}
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   name: certificate-manager-secrets
   namespace: {{ .Release.Namespace }}
 spec:
-  vaultAuthRef: federator-suite-vault-internal
+  vaultAuthRef: certificate-manager-vault-auth
   # The bootstrap PKCS#12 bundle is a KV v2 secret at node-net/client.
   mount: node-net
   path: client
