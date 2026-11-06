@@ -119,8 +119,6 @@ spec:
         - name: federation-client-p12
           mountPath: /secrets/federation-client-p12
           readOnly: true
-        - name: kafka-auth-volume
-          mountPath: /app/config/kafka-auth/
         securityContext:
           {{- toYaml .Values.federatorClient.securityContext | nindent 10 }}
       volumes:
@@ -135,9 +133,6 @@ spec:
       - name: federation-client-p12
         secret:
           secretName: federation-client-p12
-      - name: kafka-auth-volume
-        secret:
-          secretName: kafka-auth-config
       {{- with .Values.federatorClient.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

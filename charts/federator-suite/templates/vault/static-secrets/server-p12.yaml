@@ -10,15 +10,15 @@ spec:
   path: /apps/client-server
   type: kv-v2
   refreshAfter: 30s
+  rolloutRestartTargets:
+    - kind: Deployment
+      name: federator-server
+    - kind: Deployment
+      name: federator-client
   destination:
     name: federation-server-p12
     create: true
     overwrite: true
-    rolloutRestartTargets:
-      - kind: Deployment
-        name: federator-server
-      - kind: Deployment
-        name: federator-client
     transformation:
       excludeRaw: true
       excludes:

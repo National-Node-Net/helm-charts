@@ -7,6 +7,7 @@ global:
 
 federatorServer:
   config:
+    clientName: "ndtp.dbt.gov.uk.bcc"
     redisPrefix: "federator-server-bcc"
 
 federatorClient:
