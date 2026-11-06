@@ -102,22 +102,20 @@ spec:
         volumeMounts:
         - name: cert-storage
           mountPath: /certs
-        {{- if .Values.certificateManager.bootstrapCert.enabled }}
+
         - name: bootstrap-cert
           mountPath: /bootstrap-certs
           readOnly: true
-        {{- end }}
+          
         securityContext:
           {{- toYaml .Values.certificateManager.securityContext | nindent 10 }}
       volumes:
       - name: cert-storage
         persistentVolumeClaim:
           claimName: {{ include "certificateManager.claimName" . }}
-      {{- if .Values.certificateManager.bootstrapCert.enabled }}
-      # - name: bootstrap-cert
-      #   secret:
-      #     secretName: {{ .Values.certificateManager.bootstrapCert.secretName | default (printf "%s-bootstrap-cert" (include "federator-suite.certificateManager.fullname" .)) }}
-      {{- end }}
+      - name: bootstrap-cert
+        secret:
+          secretName: certificate-manager-secrets
       {{- with .Values.certificateManager.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
