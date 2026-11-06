@@ -5,7 +5,7 @@ metadata:
   name: certificate-manager-secrets
   namespace: {{ .Release.Namespace }}
 spec:
-  vaultAuthRef: certificate-manager-vault-auth
+  vaultAuthRef: federator-suite-certificate-manager
   # The bootstrap PKCS#12 bundle is a KV v2 secret at node-net/client.
   mount: node-net
   path: client

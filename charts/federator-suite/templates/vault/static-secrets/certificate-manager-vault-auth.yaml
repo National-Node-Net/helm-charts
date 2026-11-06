@@ -2,7 +2,7 @@
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
 metadata:
-  name: certificate-manager-vault-auth
+  name: federator-suite-certificate-manager-vault-auth
   namespace: {{ .Release.Namespace }}
 spec:
   vaultConnectionRef: federator-suite-vault-internal
