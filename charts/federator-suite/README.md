@@ -43,7 +43,16 @@ federator-suite/
 │   ├── check-prereqs.sh        # Checks required tools
 │   ├── generate-certs.sh       # Generates local certs, updates secrets values
 │   ├── test-render.sh          # Renders chart across scenarios
-│   └── validate-values.sh     # Aligns enabled/external flags
+│   ├── validate-values.sh      # Aligns enabled/external flags
+│   └── make/                   # Makefile helper scripts
+│       ├── bootstrap_runtime_secrets.sh # Bootstraps local runtime secrets into Vault
+│       ├── build_deps.sh        # Builds chart dependencies
+│       ├── healthcheck.sh       # Checks deployed services
+│       ├── image_pull_secrets.sh # Creates/refreshes registry pull Secret
+│       ├── init_vault.sh         # Initializes a local Vault server
+│       ├── install_strimzio.sh  # Installs/verifies Strimzi for bundled Kafka
+│       ├── install_vault_secrets_operator.sh # Installs/verifies VSO prerequisite
+│       └── portforward.sh       # Manages local service port forwards
 ├── templates/
 │   ├── _helpers.tpl            # Shared helper functions
 │   ├── NOTES.txt               # Post-install summary (shown by Helm)
@@ -81,8 +90,8 @@ federator-suite/
 
 | Switch | Default | Effect |
 |--------|---------|--------|
-| `kafka.external` | `false` | `false` = Bitnami Kafka in-cluster · `true` = External (MSK, Event Hubs, Managed Kafka) |
-| `kafka.enabled` | `false` | Controls Kafka subchart. `true` when in-cluster, `false` when external |
+| `kafka.external` | `false` | `false` = Strimzi-managed Kafka in-cluster · `true` = External (MSK, Event Hubs, Managed Kafka) |
+| `kafka.enabled` | `false` | Enables bundled Kafka resources when using in-cluster Kafka |
 | `valkey.external` | `false` | `false` = Valkey in-cluster · `true` = External Redis/Memorystore |
 | `valkey.enabled` | `true` | Controls Valkey subchart. Set `false` when external |
 | `vault.cloudProvider` | (auto) | Cloud provider for auto-unseal. Auto-derived from `global.clusterType` (`eks`→`aws`, `aks`→`azure`, `gke`→`gcp`). Set explicitly to override. |
@@ -103,7 +112,7 @@ Helm applies files left to right; last file wins. Order used by the Makefile:
 3. Secrets file (`values/overrides/{env}/secrets/{org}-secrets.yaml`)
 4. CLI `--set` flags (highest priority)
 
-Dependencies (Bitnami Kafka repo + local Valkey subchart) are built automatically by `make deploy*`.
+Dependencies (local Valkey/Vault subcharts) are built automatically by `make deploy*`. When the resolved values use bundled Kafka, deployment also installs or verifies the Strimzi operator and waits for its CRDs before installing the suite chart. Deployment always installs or verifies the Vault Secrets Operator prerequisite. Set `STRIMZI_VERSION` or `VSO_VERSION` to pin an operator chart version if required.
 
 ## Make Commands
 
@@ -118,6 +127,7 @@ Dependencies (Bitnami Kafka repo + local Valkey subchart) are built automaticall
 | `make validate ENV=dev ORG=bcc` | Validate config files + lint |
 | `make check-cluster ENV=dev ORG=bcc` | Check cluster connectivity |
 | `make check-secrets ENV=dev ORG=bcc` | Verify secrets file exists |
+| `make image_pull_secrets ORG=bcc` | Create or refresh a registry image-pull Secret |
 | **Testing** | |
 | `make test ENV=dev ORG=bcc` | Run test-render + lint |
 | `make test-render ENV=dev ORG=bcc` | Render templates, catch issues early |
