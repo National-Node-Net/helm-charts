@@ -68,6 +68,25 @@ spec:
         - configMapRef:
             name: {{ include "certificateManager.name" . }}-config
         env:
+        # Initial mTLS identity from the bootstrap bundle.  The certificate
+        # manager uses this until it has synchronised its managed certificate
+        # stores to /certs, after which it prefers those rotated stores.
+        - name: MTLS_KEYSTORE_PATH
+          value: /bootstrap-certs/keystore_p12
+        - name: MTLS_TRUSTSTORE_PATH
+          value: /bootstrap-certs/truststore_p12
+        - name: MTLS_KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: certificate-manager-secrets
+              key: keystore_password
+        - name: MTLS_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: certificate-manager-secrets
+              key: truststore_password
+        - name: MTLS_KEYSTORE_TYPE
+          value: PKCS12
         {{- if .Values.certificateManager.vaultToken.useSecret }}
         # TOKEN auth: inject vault token from k8s Secret (created by vault-setup sidecar in local mode)
         # Init container above guarantees this secret exists before this container starts.
