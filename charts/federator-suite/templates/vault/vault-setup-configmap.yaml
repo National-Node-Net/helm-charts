@@ -392,6 +392,11 @@ data:
     path "secret/metadata/apps/client-server" {
       capabilities = ["read", "list"]
     }
+
+    path "secret/data/apps/initial-bootstrap" {
+      capabilities = ["read"]
+    }
+
     POLICY
     )"
     write_policy federator-suite-client-server-vault-reader "$static_secrets_policy"
