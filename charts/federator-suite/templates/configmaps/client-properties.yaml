@@ -7,6 +7,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.client.labels" . | nindent 4 }}
+# Certificate use has two connections:
+# Connection 1: federator gRPC uses the certificate-manager runtime PKCS#12 bundle.
+# Connection 2: Keycloak and Management Node HTTPS use that same runtime identity;
+#               the IdP truststore verifies Keycloak's HTTPS server certificate
+#               (the Amazon CA chain in dev).
 data:
   client.properties: |-
     # Identity Provider (IDP) Configuration
