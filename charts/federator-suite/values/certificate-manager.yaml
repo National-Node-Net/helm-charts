@@ -93,8 +93,8 @@ certificateManager:
       renewalDaysBefore: "30"
       scheduleCron: "0 0 2 * * ?"
       # PLACEHOLDER: Set per environment
-      subjectOrg: ""
-      subjectCountry: ""
+      subjectOrg: "org"
+      subjectCountry: "GB"
       renewalRate: 3600000
       syncRate: 60000
       renewalThreshold: 10
@@ -104,6 +104,8 @@ certificateManager:
       subjectOrganizationalUnit: Platform Engineering
       subjectCommonName: api.acme-digital.co.uk
       subjectAltNames: api.acme-digital.co.uk,api.internal.acme-digital.co.uk
+      subjectCountry: "GB"  
+      subjectAltNames: "ia-federator-bcc-aws.dev.ndtp.co.uk"
       bootstrapOid: 1.3.6.1.4.1.32473.1.1
       intermediateMinValidDays: 14
       destination:

@@ -384,12 +384,22 @@ data:
     path "secret/data/apps/client-server" {
       capabilities = ["read"]
     }
+
+    # Generated federator certificate bundle maintained by certificate-manager.
+    # node-net is a KV v2 mount, not a folder under the secret mount.
+    path "node-net/data/client" {
+      capabilities = ["read"]
+    }
     
     path "secret/data/apps/valkey" {
       capabilities = ["read"]
     }
 
     path "secret/metadata/apps/client-server" {
+      capabilities = ["read", "list"]
+    }
+
+    path "node-net/metadata/client" {
       capabilities = ["read", "list"]
     }
 

@@ -1,0 +1,78 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: federator-suite-client-p12-generated
+  namespace: helm-federator-suite-bcc
+spec:
+  vaultAuthRef: federator-suite-vault-internal
+  mount: node-net
+  path: client
+  type: kv-v2
+  refreshAfter: 30s
+
+  destination:
+    name: federation-client-p12-generated
+    create: true
+    overwrite: true
+    transformation:
+      excludeRaw: true
+      excludes: ['.*']
+      templates:
+        client-org1.p12:
+          text: '{{ get .Secrets "keystore.p12" | b64dec }}'
+        client.p12.password:
+          text: '{{ get .Secrets "keystore.password" }}'
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: federator-suite-server-p12-generated
+  namespace: helm-federator-suite-bcc
+spec:
+  vaultAuthRef: federator-suite-vault-internal
+  mount: node-net
+  path: client
+  type: kv-v2
+  refreshAfter: 30s
+
+  destination:
+    name: federation-server-p12-generated
+    create: true
+    overwrite: true
+    transformation:
+      excludeRaw: true
+      excludes: ['.*']
+      templates:
+        dev-ndtp.p12:
+          text: '{{ get .Secrets "keystore.p12" | b64dec }}'
+        server.p12.password:
+          text: '{{ get .Secrets "keystore.password" }}'
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: federator-suite-runtime-certificates
+  namespace: helm-federator-suite-bcc
+spec:
+  vaultAuthRef: federator-suite-vault-internal
+  mount: node-net
+  path: client
+  type: kv-v2
+  refreshAfter: 30s
+
+  destination:
+    name: federator-runtime-certificates-generated
+    create: true
+    overwrite: true
+    transformation:
+      excludeRaw: true
+      excludes: ['.*']
+      templates:
+        keystore.p12:
+          text: '{{ get .Secrets "keystore.p12" | b64dec }}'
+        keystore.password:
+          text: '{{ get .Secrets "keystore.password" }}'
+        truststore.p12:
+          text: '{{ get .Secrets "truststore.p12" | b64dec }}'
+        truststore.password:
+          text: '{{ get .Secrets "truststore.password" }}'
