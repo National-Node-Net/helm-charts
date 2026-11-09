@@ -13,10 +13,11 @@ data:
     idp.client.id=${IDP_CLIENT_ID}
     idp.jwks.url=${IDP_JWKS_URL}
     idp.token.url=${IDP_TOKEN_URL}
-    idp.keystore.path=/secrets/idp-mtls-certificates/idp-client-keystore.jks
+    # Certificate-manager-issued identity for both Keycloak and Management Node mTLS.
+    idp.keystore.path=/secrets/federator-runtime-certificates/keystore.p12
     idp.truststore.path=/secrets/idp-mtls-certificates/keycloak.truststore.jks
     idp.mtls.enabled=${IDP_MTLS_ENABLED}
-    idp.keystore.password=${IDP_KEYSTORE_PASSWORD}
+    idp.keystore.password=${RUNTIME_KEYSTORE_PASSWORD}
     idp.truststore.password=${IDP_TRUSTSTORE_PASSWORD}
 
     # Shared Headers
