@@ -14,7 +14,7 @@ data:
     idp.jwks.url=${IDP_JWKS_URL}
     idp.token.url=${IDP_TOKEN_URL}
     idp.keystore.path=${IDP_KEYSTORE_PATH}
-    idp.truststore.path=/secrets/federation-cert/keycloak.truststore.jks
+    idp.truststore.path=/secrets/idp-mtls-certificates/keycloak.truststore.jks
     idp.mtls.enabled=${IDP_MTLS_ENABLED}
     idp.keystore.password=${IDP_KEYSTORE_PASSWORD}
     idp.truststore.password=${IDP_TRUSTSTORE_PASSWORD}
@@ -72,11 +72,10 @@ data:
 
     # Server mTLS Configuration
     server.mtlsEnabled={{ .Values.federatorServer.config.mtlsEnabled | default true }}
-    server.truststoreFilePath=/secrets/federation-cert/keycloak.truststore.jks
-    server.truststorePassword=${TRUSTSTORE_PASSWORD}
-    server.p12FilePath=/secrets/federation-server-p12/${SERVER_P12_FILENAME}
-    server.p12Password=${SERVER_P12_PASSWORD}
-    server.keystorePassword=${SERVER_KEYSTORE_PASSWORD}
+    server.truststoreFilePath=/secrets/federator-runtime-certificates/truststore.p12
+    server.truststorePassword=${RUNTIME_TRUSTSTORE_PASSWORD}
+    server.p12FilePath=/secrets/federator-runtime-certificates/keystore.p12
+    server.p12Password=${RUNTIME_KEYSTORE_PASSWORD}
 
     # JobRunr Configuration
     org.jobrunr.jobs.default-allow-concurrent-execution=false
