@@ -30,8 +30,6 @@ spec:
           text: {{ "{{ get .Secrets \"idp_jwksUrl\" }}" | quote }}
         IDP_TOKEN_URL:
           text: {{ "{{ get .Secrets \"idp_tokenUrl\" }}" | quote }}
-        IDP_KEYSTORE_PATH:
-          text: {{ "{{ get .Secrets \"idp_keystorePath\" }}" | quote }}
         IDP_MTLS_ENABLED:
           text: {{ "{{ get .Secrets \"idp_mtlsEnabled\" }}" | quote }}
         IDP_KEYSTORE_PASSWORD:

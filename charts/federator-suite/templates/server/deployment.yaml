@@ -121,10 +121,6 @@ spec:
         - name: idp-mtls-certificates
           mountPath: /secrets/idp-mtls-certificates
           readOnly: true
-        # Retained until every IDP_KEYSTORE_PATH value has moved to the new path.
-        - name: idp-mtls-certificates
-          mountPath: /secrets/federation-cert
-          readOnly: true
         - name: runtime-certificates
           mountPath: /secrets/federator-runtime-certificates
           readOnly: true

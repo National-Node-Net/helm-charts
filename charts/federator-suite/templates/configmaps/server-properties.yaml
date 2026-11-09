@@ -13,7 +13,7 @@ data:
     idp.client.id=${IDP_CLIENT_ID}
     idp.jwks.url=${IDP_JWKS_URL}
     idp.token.url=${IDP_TOKEN_URL}
-    idp.keystore.path=${IDP_KEYSTORE_PATH}
+    idp.keystore.path=/secrets/idp-mtls-certificates/idp-client-keystore.jks
     idp.truststore.path=/secrets/idp-mtls-certificates/keycloak.truststore.jks
     idp.mtls.enabled=${IDP_MTLS_ENABLED}
     idp.keystore.password=${IDP_KEYSTORE_PASSWORD}
