@@ -30,7 +30,7 @@ valkey:
     enabled: true
     image:
       repository: redis/redisinsight
-      tag: latest
+      tag: "3.8.0"
     service:
       type: NodePort
       nodePort: 30091  # Access via http://localhost:30091 (mapped in Kind)
