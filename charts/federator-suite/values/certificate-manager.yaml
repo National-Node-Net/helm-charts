@@ -93,8 +93,8 @@ certificateManager:
       renewalDaysBefore: "30"
       scheduleCron: "0 0 2 * * ?"
       # PLACEHOLDER: Set per environment
-      subjectOrg: ""
-      subjectCountry: ""
+      subjectOrg: "org"
+      subjectCountry: "GB"
       renewalRate: 3600000
       syncRate: 60000
       renewalThreshold: 10
@@ -102,8 +102,8 @@ certificateManager:
       subjectState: South Yorkshire
       subjectLocality: Sheffield
       subjectOrganizationalUnit: Platform Engineering
-      subjectCommonName: api.acme-digital.co.uk
-      subjectAltNames: api.acme-digital.co.uk,api.internal.acme-digital.co.uk
+      subjectCommonName: changeme.to.your.domain
+      subjectAltNames: changeme.to.your.domain
       bootstrapOid: 1.3.6.1.4.1.32473.1.1
       intermediateMinValidDays: 14
       destination:

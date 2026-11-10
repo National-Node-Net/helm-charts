@@ -5,33 +5,54 @@ global:
   environment: local
   clusterType: kind
 
+# Runtime certificates and application settings are bootstrapped into Vault
+# from values/overrides/local/<org>.secrets.json, then rendered by VaultStaticSecret.
+secrets:
+  create: false
+
 # Use in-cluster Strimzi Kafka for local
 kafka:
   external: false
-  enabled: true  # Enable in-cluster Bitnami Kafka
-  # Override: Enable persistence for local Kind cluster
-  persistence:
+  ui:
     enabled: true
-    size: 500Mi  # 500MB for local development
+    service:
+      type: NodePort
+      nodePort: 30090  # Access via http://localhost:9090
+    image:
+      repository: provectuslabs/kafka-ui
+      tag: latest
+      pullPolicy: IfNotPresent
 
 # Use in-cluster Valkey for local
 valkey:
   external: false
-  enabled: true  # Enable in-cluster Bitnami Valkey
-  inClusterConfig:
-    auth:
+  enabled: true
+  valkey:
+    # Override the EKS-oriented base configuration for a one-node KIND cluster.
+    replica:
+      enabled: true
+      replicas: 0
+      # A single-node local Valkey has no replicas. Do not reject writes while
+      # waiting for the production replica quorum.
+      minReplicasToWrite: 0
+      persistence:
+        storageClass: standard
+        size: 1Gi
+        accessModes:
+          - ReadWriteOnce
+    podDisruptionBudget:
       enabled: false
-      password: ""
-    tls:
-      enabled: false
+    topologySpreadConstraints: []
 
 
 # Federator Server - Local Configuration
 federatorServer:
+  imagePullSecrets:
+    - name: image-pull-creds
   image:
-    repository: federator-server
-    tag: local
-    pullPolicy: Never
+    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-server
+    tag: "1.2.0-20261104101759"
+    pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
     requests:
@@ -53,10 +74,12 @@ federatorServer:
 
 # Federator Client - Local Configuration
 federatorClient:
+  imagePullSecrets:
+    - name: image-pull-creds
   image:
-    repository: federator-client
-    tag: local
-    pullPolicy: Never
+    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-client
+    tag: "1.2.0-20261104101759"
+    pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
     requests:
@@ -76,11 +99,6 @@ federatorClient:
     serverPort: 8081
 
 # Enable UIs for local development
-kafkaUi:
-  enabled: true
-  service:
-    nodePort: 30090  # Access via localhost:9090
-
 valkeyUi:
   enabled: true
   service:
@@ -93,10 +111,12 @@ serviceMesh:
 
 # Certificate Manager — Local
 certificateManager:
+  imagePullSecrets:
+    - name: image-pull-creds
   image:
-    repository: ndtp/federator-certificate-manager
-    tag: "local"          # locally built image with configurable Vault auth
-    pullPolicy: Never
+    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-certificate-manager
+    tag: "0.90.0-20261023084513"
+    pullPolicy: IfNotPresent
   persistence:
     # KIND local-path provisioner only supports ReadWriteOnce (not ReadWriteMany)
     accessMode: ReadWriteOnce
@@ -117,6 +137,12 @@ managementNode:
 # Uses Shamir seal (no cloud KMS), single replica, stores credentials in k8s Secret
 vault:
   devMode: true
+
+  secretsManager:
+    secretName: federator-suite-vault-credentials
+
+  staticSecrets:
+    enabled: true
 
   ha:
     replicas: 1
@@ -153,9 +179,11 @@ vault:
       dataStorage:
         enabled: true
         size: 1Gi
+        storageClass: standard
       auditStorage:
         enabled: true
         size: 1Gi
+        storageClass: standard
 
 # OPA — Local (KIND): single replica is enough for a functional smoke test
 opa:

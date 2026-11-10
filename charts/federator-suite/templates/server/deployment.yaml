@@ -21,7 +21,6 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmaps/server-properties.yaml") . | sha256sum }}
-        checksum/secrets: {{ include (print $.Template.BasePath "/secrets/federation-cert.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.federatorServer.podAnnotations }}
         {{- toYaml . | nindent 8 }}
@@ -54,6 +53,17 @@ spec:
         env:
         - name: FEDERATOR_SERVER_PROPERTIES
           value: /config/server.properties
+        # Passwords for the certificate-manager-generated PKCS#12 runtime bundle.
+        - name: RUNTIME_KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.federatorServer.runtimeCertificatesSecret }}
+              key: keystore.password
+        - name: RUNTIME_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.federatorServer.runtimeCertificatesSecret }}
+              key: truststore.password
         {{- if not .Values.kafka.external }}
         # if we are using the bundled  strimzi Kafka, we need to set the KAFKA_SASL_JAAS_CONFIG environment variable from the kafka-user secret that strimzi creates
         - name: KAFKA_SASL_JAAS_CONFIG
@@ -108,14 +118,12 @@ spec:
           mountPath: /config-templates/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
           subPath: server.properties
           readOnly: true     
-        - name: federation-cert
-          mountPath: /secrets/federation-cert
+        - name: idp-mtls-certificates
+          mountPath: /secrets/idp-mtls-certificates
           readOnly: true
-        - name: federation-server-p12
-          mountPath: /secrets/federation-server-p12
+        - name: runtime-certificates
+          mountPath: /secrets/federator-runtime-certificates
           readOnly: true
-        - name: kafka-auth-volume
-          mountPath: /app/config/kafka-auth/
         securityContext:
           {{- toYaml .Values.federatorServer.securityContext | nindent 10 }}
       volumes:
@@ -124,15 +132,12 @@ spec:
       - name: server-properties-volume
         configMap:
           name: {{ include "server.name" . }}-properties
-      - name: kafka-auth-volume
+      - name: idp-mtls-certificates
         secret:
-          secretName: kafka-auth-config    
-      - name: federation-cert
+          secretName: idp-mtls-certificates
+      - name: runtime-certificates
         secret:
-          secretName: federation-cert
-      - name: federation-server-p12
-        secret:
-          secretName: federation-server-p12
+          secretName: {{ .Values.federatorServer.runtimeCertificatesSecret }}
       {{- with .Values.federatorServer.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

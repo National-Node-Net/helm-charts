@@ -37,6 +37,10 @@ data:
   # Certificate subject organisation.
   CERT_SUBJECT_ORG: {{ .Values.certificateManager.config.cert.subjectOrg | quote }}
   {{- end }}
+  # Certificate subject common name.
+  CERT_SUBJECT_CN: {{ .Values.certificateManager.config.cert.subjectCommonName | quote }}
+  # Certificate DNS subject alternative names, comma-separated.
+  CERT_SUBJECT_ALT_NAMES: {{ .Values.certificateManager.config.cert.subjectAltNames | quote }}
   # Root application log level.
   LOGGING_LEVEL_ROOT: {{ .Values.certificateManager.config.logLevel | default "INFO" | quote }}
   # Management Node base URL.

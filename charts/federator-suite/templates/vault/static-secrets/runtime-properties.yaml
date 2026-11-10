@@ -10,34 +10,26 @@ spec:
   path: /apps/client-server
   type: kv-v2
   refreshAfter: 30s
+  rolloutRestartTargets:
+    - kind: Deployment
+      name: federator-server
+    - kind: Deployment
+      name: federator-client
   destination:
     name: {{ .Values.federatorClient.runtimeSecret | default "federator-runtime-properties" }}
     create: true
     overwrite: true
-    rolloutRestartTargets:
-      - kind: Deployment
-        name: federator-server
-      - kind: Deployment
-        name: federator-client
     transformation:
       excludeRaw: true
       excludes:
         - '.*'
       templates:
-        CLIENT_KEYSTORE_PASSWORD:
-          text: {{ "{{ get .Secrets \"certificates_clientKeystorePassword\" }}" | quote }}
-        CLIENT_P12_FILENAME:
-          text: {{ "{{ get .Secrets \"certificates_clientP12Filename\" }}" | quote }}
-        CLIENT_P12_PASSWORD:
-          text: {{ "{{ get .Secrets \"certificates_clientP12Password\" }}" | quote }}
         IDP_CLIENT_ID:
           text: {{ "{{ get .Secrets \"idp_clientId\" }}" | quote }}
         IDP_JWKS_URL:
           text: {{ "{{ get .Secrets \"idp_jwksUrl\" }}" | quote }}
         IDP_TOKEN_URL:
           text: {{ "{{ get .Secrets \"idp_tokenUrl\" }}" | quote }}
-        IDP_KEYSTORE_PATH:
-          text: {{ "{{ get .Secrets \"idp_keystorePath\" }}" | quote }}
         IDP_MTLS_ENABLED:
           text: {{ "{{ get .Secrets \"idp_mtlsEnabled\" }}" | quote }}
         IDP_KEYSTORE_PASSWORD:
@@ -48,14 +40,6 @@ spec:
         KAFKA_SASL_JAAS_CONFIG:
           text: {{ "{{ get .Secrets \"kafkaAuth_jaasConfig\" }}" | quote }}
 {{- end }}
-        SERVER_P12_FILENAME:
-          text: {{ "{{ get .Secrets \"certificates_serverP12Filename\" }}" | quote }}
-        SERVER_P12_PASSWORD:
-          text: {{ "{{ get .Secrets \"certificates_serverP12Password\" }}" | quote }}
-        SERVER_KEYSTORE_PASSWORD:
-          text: {{ "{{ get .Secrets \"certificates_serverKeystorePassword\" }}" | quote }}
-        TRUSTSTORE_PASSWORD:
-          text: {{ "{{ get .Secrets \"certificates_truststorePassword\" }}" | quote }}
 {{- if .Values.valkey.external }}
         VALKEY_PASSWORD:
           text: {{ "{{ get .Secrets \"valkey_password\" }}" | quote }}

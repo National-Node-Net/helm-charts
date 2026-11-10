@@ -2,7 +2,7 @@
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
-  name: federator-suite-federation-cert
+  name: federator-suite-idp-mtls-certificates
   namespace: {{ .Release.Namespace }}
 spec:
   vaultAuthRef: federator-suite-vault-internal
@@ -10,15 +10,20 @@ spec:
   path: /apps/client-server
   type: kv-v2
   refreshAfter: 30s
+  rolloutRestartTargets:
+    - kind: Deployment
+      name: {{ include "server.name" . }}
+    - kind: Deployment
+      name: {{ include "client.name" . }}
   destination:
-    name: federation-cert
+    name: idp-mtls-certificates
     create: true
     overwrite: true
-    rolloutRestartTargets:
-      - kind: Deployment
-        name: federator-server
-      - kind: Deployment
-        name: federator-client
+    labels:
+      ndtp.gov.uk/secret-purpose: idp-mtls
+    annotations:
+      ndtp.gov.uk/keystores: "idp-client-keystore.jks and ndtp-keystore.jks are Keycloak client mTLS identities."
+      ndtp.gov.uk/truststore: "keycloak.truststore.jks is the Keycloak truststore."
     transformation:
       excludeRaw: true
       excludes:
@@ -26,7 +31,7 @@ spec:
       templates:
         client-keystore.password:
           text: {{ "{{ get .Secrets \"certificates_clientKeystorePassword\" }}" | quote }}
-        client-org1-keystore.jks:
+        idp-client-keystore.jks:
           text: {{ "{{ get .Secrets \"certificates_clientKeystoreJks\" | b64dec }}" | quote }}
         keycloak.truststore.jks:
           text: {{ "{{ get .Secrets \"certificates_truststoreJks\" | b64dec }}" | quote }}

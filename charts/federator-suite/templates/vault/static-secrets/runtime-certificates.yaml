@@ -1,0 +1,36 @@
+{{- if .Values.vault.staticSecrets.enabled }}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: federator-suite-runtime-certificates
+  namespace: {{ .Release.Namespace }}
+spec:
+  vaultAuthRef: federator-suite-vault-internal
+  mount: node-net
+  path: client
+  type: kv-v2
+  refreshAfter: 30s
+  # Restart both federators when certificate-manager renews the PKCS#12 bundle.
+  rolloutRestartTargets:
+    - kind: Deployment
+      name: {{ include "server.name" . }}
+    - kind: Deployment
+      name: {{ include "client.name" . }}
+  destination:
+    name: {{ .Values.federatorClient.runtimeCertificatesSecret }}
+    create: true
+    overwrite: true
+    transformation:
+      excludeRaw: true
+      excludes:
+        - '.*'
+      templates:
+        keystore.p12:
+          text: {{ "{{ get .Secrets \"keystore.p12\" | b64dec }}" | quote }}
+        keystore.password:
+          text: {{ "{{ get .Secrets \"keystore.password\" }}" | quote }}
+        truststore.p12:
+          text: {{ "{{ get .Secrets \"truststore.p12\" | b64dec }}" | quote }}
+        truststore.password:
+          text: {{ "{{ get .Secrets \"truststore.password\" }}" | quote }}
+{{- end }}

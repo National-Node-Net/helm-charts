@@ -22,6 +22,7 @@ data:
     GCP_PROJECT="${GCP_PROJECT:-{{ .Values.vault.seal.gcp.project | default "" }}}"
     AZURE_VAULT_NAME="${AZURE_VAULT_NAME:-{{ .Values.vault.seal.azure.vaultName | default "" }}}"
     SECRETS_MANAGER_SECRET_NAME="${SECRETS_MANAGER_SECRET_NAME:-{{ .Values.vault.secretsManager.secretName }}}"
+    VAULT_REPLICAS="{{ .Values.vault.vault.server.ha.replicas | default (.Values.vault.ha.replicas | default 1) }}"
     KEY_SHARES="${VAULT_KEY_SHARES:-{{ .Values.vault.setup.keyShares | default 5 }}}"
     KEY_THRESHOLD="${VAULT_KEY_THRESHOLD:-{{ .Values.vault.setup.keyThreshold | default 3 }}}"
     CERT_MANAGER_SA="{{ include "certificateManager.serviceAccountName" . }}"
@@ -237,8 +238,8 @@ data:
       [ -z "$VAULT_TOKEN" ] && fail "root_token not found in secret backend payload"
     fi
 
-    log "Phase 3 - Joining Raft peers"
-    for i in 1 2; do
+    log "Phase 3 - Joining $((VAULT_REPLICAS - 1)) Raft peer(s)"
+    for i in $(seq 1 $((VAULT_REPLICAS - 1))); do
       peer_addr="http://${sts_name}-${i}.${sts_name}-internal:8200"
       log "Waiting for ${sts_name}-${i} to be reachable."
       peer_n=0
@@ -248,8 +249,7 @@ data:
         sleep 5
       done
       if [ "$peer_n" -lt 30 ]; then
-        curl -s -X POST \
-          -H "Content-Type: application/json" \
+        curl -s -X POST -H "Content-Type: application/json" \
           -d "{\"leader_api_addr\":\"http://${sts_name}-0.${sts_name}-internal:8200\"}" \
           "${peer_addr}/v1/sys/storage/raft/join" > /dev/null || true
         log "Raft join request sent to ${sts_name}-${i}."
@@ -384,6 +384,12 @@ data:
     path "secret/data/apps/client-server" {
       capabilities = ["read"]
     }
+
+    # Generated federator certificate bundle maintained by certificate-manager.
+    # node-net is a KV v2 mount, not a folder under the secret mount.
+    path "node-net/data/client" {
+      capabilities = ["read"]
+    }
     
     path "secret/data/apps/valkey" {
       capabilities = ["read"]
@@ -392,6 +398,15 @@ data:
     path "secret/metadata/apps/client-server" {
       capabilities = ["read", "list"]
     }
+
+    path "node-net/metadata/client" {
+      capabilities = ["read", "list"]
+    }
+
+    path "secret/data/apps/initial-bootstrap" {
+      capabilities = ["read"]
+    }
+
     POLICY
     )"
     write_policy federator-suite-client-server-vault-reader "$static_secrets_policy"

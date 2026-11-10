@@ -2,6 +2,7 @@
 # values-secrets.yaml
 # values/overrides/*/secrets.yaml
 # values/overrides/*/secrets/*.yaml
+*.secrets.json
 
 # Helm packaging
 *.tgz
