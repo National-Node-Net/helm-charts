@@ -15,7 +15,7 @@ global:
     baseUrl: "https://ia-management-node.dev.ndtp.co.uk:443"
     cacheTtlSeconds: 60
     requestTimeout: 60
-  
+
   # Image pull policy
   imagePullPolicy: IfNotPresent
   
@@ -52,16 +52,8 @@ secrets:
       serverKeystorePassword: "<set-in-overrides>"
       clientKeystoreJks: "<set-in-overrides>"
       clientKeystorePassword: "<set-in-overrides>"
-      clientP12: "<set-in-overrides>"
-      clientP12Password: "<set-in-overrides>"
-      clientP12Filename: "<set-in-overrides>"  # Override per org
-      serverP12: "<set-in-overrides>"
-      serverP12Password: "<set-in-overrides>"
-      serverP12Filename: "<set-in-overrides>"  # Override per org
       existingSecrets:
         federationCert: ""
-        clientP12: ""
-        serverP12: ""
   
   kafkaAuth:
     securityProtocol: "<set-in-overrides>"

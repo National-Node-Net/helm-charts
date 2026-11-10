@@ -15,11 +15,6 @@ federatorClient:
     kafkaConsumerGroup: "ndtp.dbt.gov.uk.heg"
     redisPrefix: "federator-client-heg"
   
-  # Override client-specific env
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-heg-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-heg.p12
-
 # HEG-specific secrets (override in values-secrets.yaml)
 secrets:
   idp:

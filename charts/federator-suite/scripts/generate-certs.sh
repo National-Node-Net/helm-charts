@@ -79,9 +79,7 @@ load_passwords_from_secrets() {
     log "Loading certificate passwords from ${SECRETS_FILE}"
 
     SERVER_KEYSTORE_PASSWORD="$(yq -e '.secrets.certificates.external.serverKeystorePassword' "${SECRETS_FILE}")"
-    SERVER_P12_PASSWORD="$(yq -e '.secrets.certificates.external.serverP12Password' "${SECRETS_FILE}")"
     CLIENT_KEYSTORE_PASSWORD="$(yq -e '.secrets.certificates.external.clientKeystorePassword' "${SECRETS_FILE}")"
-    CLIENT_P12_PASSWORD="$(yq -e '.secrets.certificates.external.clientP12Password' "${SECRETS_FILE}")"
     TRUSTSTORE_PASSWORD="$(yq -e '.secrets.certificates.external.truststorePassword' "${SECRETS_FILE}")"
 }
 
@@ -141,13 +139,13 @@ EOF
         -inkey "${CERTS_DIR}/server-key.pem" \
         -out "${CERTS_DIR}/dev-ndtp.p12" \
         -name "server" \
-        -password "pass:${SERVER_P12_PASSWORD}"
+        -password "pass:${SERVER_KEYSTORE_PASSWORD}"
     
     # Convert PKCS12 to JKS keystore
     keytool -importkeystore \
         -srckeystore "${CERTS_DIR}/dev-ndtp.p12" \
         -srcstoretype PKCS12 \
-        -srcstorepass "${SERVER_P12_PASSWORD}" \
+        -srcstorepass "${SERVER_KEYSTORE_PASSWORD}" \
         -destkeystore "${CERTS_DIR}/ndtp-keystore.jks" \
         -deststoretype JKS \
         -deststorepass "${SERVER_KEYSTORE_PASSWORD}" \
@@ -183,13 +181,13 @@ create_client_certs() {
         -inkey "${CERTS_DIR}/client-key.pem" \
         -out "${CERTS_DIR}/client-${ORG}.p12" \
         -name "client" \
-        -password "pass:${CLIENT_P12_PASSWORD}"
+        -password "pass:${CLIENT_KEYSTORE_PASSWORD}"
     
     # Convert PKCS12 to JKS keystore (IDP keystore)
     keytool -importkeystore \
         -srckeystore "${CERTS_DIR}/client-${ORG}.p12" \
         -srcstoretype PKCS12 \
-        -srcstorepass "${CLIENT_P12_PASSWORD}" \
+        -srcstorepass "${CLIENT_KEYSTORE_PASSWORD}" \
         -destkeystore "${CERTS_DIR}/client-${ORG}-keystore.jks" \
         -deststoretype JKS \
         -deststorepass "${CLIENT_KEYSTORE_PASSWORD}" \
@@ -225,11 +223,8 @@ generate_base64_values() {
         TRUSTSTORE_JKS="$(base64 -w 0 "${CERTS_DIR}/keycloak.truststore.jks")"
         SERVER_KEYSTORE_JKS="$(base64 -w 0 "${CERTS_DIR}/ndtp-keystore.jks")"
         CLIENT_KEYSTORE_JKS="$(base64 -w 0 "${CERTS_DIR}/client-${ORG}-keystore.jks")"
-        CLIENT_P12="$(base64 -w 0 "${CERTS_DIR}/client-${ORG}.p12")"
-        SERVER_P12="$(base64 -w 0 "${CERTS_DIR}/dev-ndtp.p12")"
-
-        export TRUSTSTORE_JKS SERVER_KEYSTORE_JKS CLIENT_KEYSTORE_JKS CLIENT_P12 SERVER_P12 \
-                TRUSTSTORE_PASSWORD SERVER_KEYSTORE_PASSWORD CLIENT_KEYSTORE_PASSWORD CLIENT_P12_PASSWORD SERVER_P12_PASSWORD
+        export TRUSTSTORE_JKS SERVER_KEYSTORE_JKS CLIENT_KEYSTORE_JKS \
+                TRUSTSTORE_PASSWORD SERVER_KEYSTORE_PASSWORD CLIENT_KEYSTORE_PASSWORD
 
         yq -i '
             .secrets.certificates.external.truststoreJks = strenv(TRUSTSTORE_JKS) |
@@ -237,11 +232,7 @@ generate_base64_values() {
             .secrets.certificates.external.serverKeystoreJks = strenv(SERVER_KEYSTORE_JKS) |
             .secrets.certificates.external.serverKeystorePassword = strenv(SERVER_KEYSTORE_PASSWORD) |
             .secrets.certificates.external.clientKeystoreJks = strenv(CLIENT_KEYSTORE_JKS) |
-            .secrets.certificates.external.clientKeystorePassword = strenv(CLIENT_KEYSTORE_PASSWORD) |
-            .secrets.certificates.external.clientP12 = strenv(CLIENT_P12) |
-            .secrets.certificates.external.clientP12Password = strenv(CLIENT_P12_PASSWORD) |
-            .secrets.certificates.external.serverP12 = strenv(SERVER_P12) |
-            .secrets.certificates.external.serverP12Password = strenv(SERVER_P12_PASSWORD)
+            .secrets.certificates.external.clientKeystorePassword = strenv(CLIENT_KEYSTORE_PASSWORD)
         ' "${SECRETS_FILE}"
 
         cat > "${output_file}" <<EOF
@@ -257,10 +248,6 @@ secrets:
             serverKeystorePassword: "${SERVER_KEYSTORE_PASSWORD}"
             clientKeystoreJks: "${CLIENT_KEYSTORE_JKS}"
             clientKeystorePassword: "${CLIENT_KEYSTORE_PASSWORD}"
-            clientP12: "${CLIENT_P12}"
-            clientP12Password: "${CLIENT_P12_PASSWORD}"
-            serverP12: "${SERVER_P12}"
-            serverP12Password: "${SERVER_P12_PASSWORD}"
 EOF
 
         log "✓ Updated ${SECRETS_FILE} and wrote reference copy to ${output_file}"
@@ -276,13 +263,11 @@ display_summary() {
     echo ""
     echo "  Server:"
     echo "    - ndtp-keystore.jks (password: ${SERVER_KEYSTORE_PASSWORD})"
-    echo "    - dev-ndtp.p12 (password: ${SERVER_P12_PASSWORD})"
     echo "    - server-cert.pem"
     echo "    - server-key.pem"
     echo ""
     echo "  Client:"
     echo "    - client-${ORG}-keystore.jks (password: ${CLIENT_KEYSTORE_PASSWORD})"
-    echo "    - client-${ORG}.p12 (password: ${CLIENT_P12_PASSWORD})"
     echo "    - client-cert.pem"
     echo "    - client-key.pem"
     echo ""

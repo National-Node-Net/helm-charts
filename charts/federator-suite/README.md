@@ -193,6 +193,5 @@ kubectl get pods -n helm-ia-federation                                  # Pod st
 ### Certificate Issues
 
 ```bash
-base64 -w 0 client.p12                                          # Encode P12
-kubectl get secret federation-client-p12 -n ia-federation -o yaml  # Verify secret
+kubectl get secret federator-runtime-certificates -n ia-federation -o yaml  # Verify runtime certificate secret
 ```
