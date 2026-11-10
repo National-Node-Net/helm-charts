@@ -46,6 +46,16 @@ kafka:
 valkey:
   external: false
   enabled: true  # Enable in-cluster Bitnami Valkey
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: LoadBalancer
+      annotations:
+        cloud.google.com/load-balancer-type: "External"
   valkey:
     primary:
       resources:
@@ -192,17 +202,6 @@ kafkaUi:
   enabled: true
   image:
     repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: LoadBalancer
-    annotations:
-      cloud.google.com/load-balancer-type: "External"
-
-valkeyUi:
-  enabled: true
-  image:
-    repository: redis/redisinsight
     tag: latest
     pullPolicy: IfNotPresent
   service:

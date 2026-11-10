@@ -27,6 +27,10 @@ kafka:
 valkey:
   external: false
   enabled: true
+  ui:
+    enabled: true
+    service:
+      nodePort: 30091  # Access via localhost:9091
   valkey:
     # Override the EKS-oriented base configuration for a one-node KIND cluster.
     replica:
@@ -99,11 +103,6 @@ federatorClient:
     serverPort: 8081
 
 # Enable UIs for local development
-valkeyUi:
-  enabled: true
-  service:
-    nodePort: 30091  # Access via localhost:9091
-
 # Istio disabled for local
 serviceMesh:
   istio:

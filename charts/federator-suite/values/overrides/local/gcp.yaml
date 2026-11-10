@@ -41,6 +41,12 @@ kafka:
 valkey:
   external: false  # In-cluster for local testing
   enabled: true    # Enable in-cluster Bitnami Valkey
+  ui:
+    enabled: true
+    service:
+      type: NodePort
+      port: 8081
+      nodePort: 30092  # Different port than BCC (30090) and ENV (30091)
   
   inClusterConfig:
     architecture: standalone
@@ -69,13 +75,6 @@ kafkaUi:
     nodePort: 30082  # Different port than BCC (30080) and ENV (30081)
 
 # Valkey UI - Enable with NodePort for local access
-valkeyUi:
-  enabled: true
-  service:
-    type: NodePort
-    port: 8081
-    nodePort: 30092  # Different port than BCC (30090) and ENV (30091)
-
 # Federator Server
 federatorServer:
   enabled: true

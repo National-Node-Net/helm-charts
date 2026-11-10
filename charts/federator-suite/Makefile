@@ -43,7 +43,7 @@ MAKESCRIPTS = scripts/make
 TYPE ?= aws
 CREDS ?=
 
-COMPONENT_VALUES = -f values/common-values.yaml -f values/kafka.yaml -f values/valkey.yaml -f values/vault.yaml -f values/certificate-manager.yaml -f values/opa.yaml -f values/federator.yaml -f values/valkey-ui.yaml -f values/istio.yaml
+COMPONENT_VALUES = -f values/common-values.yaml -f values/kafka.yaml -f values/valkey.yaml -f values/vault.yaml -f values/certificate-manager.yaml -f values/opa.yaml -f values/federator.yaml -f values/istio.yaml
 
 ifeq ($(ENV),local)
 VALUES_FILES = $(COMPONENT_VALUES) -f values/overrides/local/local.yaml -f values/overrides/local/$(ORG).yaml
