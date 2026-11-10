@@ -82,7 +82,7 @@ data:
     server.truststoreFilePath=/secrets/federator-runtime-certificates/truststore.p12
     server.truststorePassword=${RUNTIME_TRUSTSTORE_PASSWORD}
     server.p12FilePath=/secrets/federator-runtime-certificates/keystore.p12
-    server.p12Password=${RUNTIME_KEYSTORE_PASSWORD}  
+    server.p12Password=${RUNTIME_KEYSTORE_PASSWORD}
 
 {{ if .Values.opa.enabled }}
     # Policy decisions are evaluated by this release's namespace-local OPA.
@@ -101,7 +101,7 @@ data:
     # Management Node
     management.node.cache.ttl.seconds=60
     management.node.request.timeout=60
-    management.node.base.url={{ .Values.global.managementNode.baseUrl }}  
+    management.node.base.url={{ .Values.global.managementNode.baseUrl }}
   
     # File Storage Configuration
     file.stream.chunk.size=1000
