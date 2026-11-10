@@ -68,7 +68,6 @@ federator-suite/
 │   ├── certificate-manager.yaml  # Certificate manager defaults
 │   ├── opa.yaml                  # OPA PDP defaults (standalone Deployment, not a sidecar)
 │   ├── federator.yaml          # Server/client defaults
-│   ├── kafka-ui.yaml           # Kafka UI defaults
 │   ├── valkey-ui.yaml          # Valkey UI defaults
 │   ├── istio.yaml              # Istio defaults
 │   └── overrides/
@@ -90,7 +89,7 @@ federator-suite/
 | `vault.devMode` | `false` | Use in-memory Vault without KMS auto-unseal (for KIND/local development) |
 | `opa.enabled` | `true` | Deploys the OPA (Open Policy Agent) PDP as its own Deployment + ClusterIP Service (not a sidecar). No PEP wired up to it yet — infra ready for future policy integration. |
 | `serviceMesh.istio.enabled` | `false` | Deploys Istio resources (Gateway, VirtualService, DestinationRule, PeerAuthentication, AuthorizationPolicy). OPA always opts out of sidecar injection regardless of this switch. |
-| `kafkaUi.enabled` | `false` | Deploy Kafka UI |
+| `kafka.ui.enabled` | `false` | Deploy Kafka UI |
 | `valkeyUi.enabled` | `false` | Deploy Valkey UI |
 
 Each org override file (e.g. `dev/bcc.yaml`) is self-contained — cloud config, org settings, annotations, storage, and connection details in one file.
@@ -99,7 +98,7 @@ Each org override file (e.g. `dev/bcc.yaml`) is self-contained — cloud config,
 
 Helm applies files left to right; last file wins. Order used by the Makefile:
 
-1. `values/common-values.yaml` → `kafka.yaml` → `valkey.yaml` → `vault.yaml` → `certificate-manager.yaml` → `opa.yaml` → `federator.yaml` → `kafka-ui.yaml` → `valkey-ui.yaml` → `istio.yaml`
+1. `values/common-values.yaml` → `kafka.yaml` → `valkey.yaml` → `vault.yaml` → `certificate-manager.yaml` → `opa.yaml` → `federator.yaml` → `valkey-ui.yaml` → `istio.yaml`
 2. Environment override (`values/overrides/{env}/{org}.yaml`)
 3. Secrets file (`values/overrides/{env}/secrets/{org}-secrets.yaml`)
 4. CLI `--set` flags (highest priority)

@@ -43,8 +43,6 @@ federatorServer:
     annotations:
       azure.workload.identity/client-id: "5a9727b9-b34c-4383-89e8-96ba2797807e"
   
-  podAnnotations:
-    traffic.sidecar.istio.io/excludeOutboundPorts: "6379"  # Exclude Redis from Istio mesh
   
   resources:
     requests:
@@ -84,8 +82,6 @@ federatorClient:
     annotations:
       azure.workload.identity/client-id: "5a9727b9-b34c-4383-89e8-96ba2797807e"
   
-  podAnnotations:
-    traffic.sidecar.istio.io/excludeOutboundPorts: "6379"  # Exclude Redis from Istio mesh
   
   resources:
     requests:

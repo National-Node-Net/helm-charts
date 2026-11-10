@@ -1,0 +1,16 @@
+{{- if .Values.vault.staticSecrets.enabled }}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: federator-suite-vault-internal
+  namespace: {{ .Release.Namespace }}
+spec:
+  vaultConnectionRef: federator-suite-vault-internal
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: federator-suite-client-server-vault-reader
+    serviceAccount: federator-suite-vault-internal
+    audiences:
+      - vault
+{{- end }}

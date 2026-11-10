@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: valkey-ui
+  name: {{ include "valkeyui.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: valkey-ui
@@ -18,89 +18,58 @@ spec:
       labels:
         app: valkey-ui
       annotations:
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"  # Exclude Valkey from Istio mesh
     spec:
       restartPolicy: Always
       containers:
       - name: valkey-ui
         image: "{{ .Values.valkeyUi.image.repository }}:{{ .Values.valkeyUi.image.tag }}"
-        imagePullPolicy: {{ .Values.valkeyUi.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.valkeyUi.image.pullPolicy | default "IfNotPresent" }}
         ports:
         - name: http
           containerPort: 5540
           protocol: TCP
         env:
-        {{- if eq .Values.valkeyUi.image.repository "redis/redisinsight" }}
-        # RedisInsight configuration
-        - name: REDIS_HOSTS
-          value: "{{ include "federator-suite.valkey.host" . }}"
-        - name: REDIS_PORT
-          value: "{{ include "federator-suite.valkey.port" . }}"
-        {{- if .Values.valkey.external }}
-          {{- if .Values.valkey.externalConfig.auth.enabled }}
-        - name: REDIS_PASSWORD
-          value: "{{ .Values.secrets.valkeyAuth.token | default .Values.valkey.externalConfig.auth.token }}"
-          {{- end }}
-          {{- if .Values.valkey.externalConfig.tls.enabled }}
-        - name: REDIS_TLS
-          value: "true"
-          {{- end }}
+        # RedisInsight preconfigured database connection
+        - name: RI_REDIS_HOST
+          value: "{{ include "valkey.hostname" . }}"
+
+      {{- if not .Values.valkey.external }}
+        # Internal Redis settings
+        - name: RI_REDIS_ALIAS
+          value: "InternalValkey"
+        - name: RI_REDIS_PORT
+          value: "{{ .Values.valkey.valkey.service.port }}"
+        - name: RI_REDIS_TLS
+          value: "false" # not using TLS for internal Redis as istio is handling mTLS
+        - name: RI_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: valkey-secrets
+              key: valkey_password
+        - name: RI_REDIS_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: valkey-secrets
+              key: valkey_username
         {{- else }}
-          {{- if .Values.valkey.valkey.auth.enabled }}
-        - name: REDIS_PASSWORD
-          value: "{{ .Values.valkey.valkey.auth.password }}"
-          {{- end }}
-        {{- end }}
-        {{- else }}
-        # redis-commander configuration
-        - name: REDIS_HOSTS
-          value: "local:{{ include "federator-suite.valkey.host" . }}:{{ include "federator-suite.valkey.port" . }}"
-        {{- if .Values.valkey.external }}
-          {{- if .Values.valkey.externalConfig.auth.enabled }}
-        - name: REDIS_PASSWORD
-          value: {{ .Values.valkey.externalConfig.auth.token }}
-          {{- end }}
-          {{- if .Values.valkey.externalConfig.tls.enabled }}
-        - name: REDIS_TLS
-          value: "true"
-          {{- end }}
-        {{- else }}
-          {{- if .Values.valkey.valkey.auth.enabled }}
-        - name: REDIS_PASSWORD
-          value: {{ .Values.valkey.valkey.auth.password }}
-          {{- end }}
-        {{- end }}
-        {{- end }}
-        {{- if eq .Values.valkeyUi.image.repository "redis/redisinsight" }}
-        volumeMounts:
-        - name: redisinsight-config
-          mountPath: /data
+        # External Redis settings
+        - name: RI_REDIS_ALIAS
+          value: "ExternalValkey"
+        - name: RI_REDIS_PORT
+          value: "{{ .Values.valkey.externalSettings.port }}"
+        - name: RI_REDIS_TLS
+          value: "{{ .Values.valkey.externalSettings.tlsEnabled | default false }}"
+        - name: RI_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: federator-runtime-properties
+              key: VALKEY_PASSWORD
+        - name: RI_REDIS_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: federator-runtime-properties
+              key: VALKEY_USERNAME
         {{- end }}
         resources:
           {{- toYaml .Values.valkeyUi.resources | nindent 10 }}
-      {{- if eq .Values.valkeyUi.image.repository "redis/redisinsight" }}
-      initContainers:
-      - name: setup-database
-        image: busybox:latest
-        command:
-        - sh
-        - -c
-        - |
-          mkdir -p /data
-          if [ ! -f /data/.redisinsight-configured ]; then
-            cp /config/databases.json /data/databases.json
-            touch /data/.redisinsight-configured
-          fi
-        volumeMounts:
-        - name: config
-          mountPath: /config
-        - name: redisinsight-config
-          mountPath: /data
-      volumes:
-      - name: config
-        configMap:
-          name: valkey-ui-config
-      - name: redisinsight-config
-        emptyDir: {}
-      {{- end }}
 {{- end }}

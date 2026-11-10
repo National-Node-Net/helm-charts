@@ -10,4 +10,30 @@ metadata:
 spec:
   mtls:
     mode: {{ .Values.serviceMesh.istio.peerAuthentication.mode | default "STRICT" | upper }}
+
+{{- if not .Values.kafka.external }}
+---
+# this overrides the namespace-wide STRICT policy only for Kafka broker pods. 
+# allows the Strimzi operator in strimzi-system to use its normal Kafka TLS connection
+# meshed clients such as Kafka UI can still use Istio mTLS.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: {{ include "kafka.name" . }}-permissive-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      strimzi.io/name: {{ include "kafka.name" . }}-kafka
+  mtls:
+    mode: PERMISSIVE
+  # The Strimzi operator is outside the mesh and uses Kafka's own TLS on
+  # the controller and replication ports. Envoy must pass that TLS through
+  # rather than attempting Istio mTLS negotiation.
+  portLevelMtls:
+    "9090":
+      mode: DISABLE
+    "9091":
+      mode: DISABLE
+{{- end }}
 {{- end }}

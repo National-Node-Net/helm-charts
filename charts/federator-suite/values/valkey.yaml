@@ -1,99 +1,29 @@
-# Valkey Configuration (BSD-3 licensed Redis alternative)
-# Single switch: external = false → in-cluster Bitnami (chart enabled), external = true → external managed (chart disabled)
-
+# Valkey configuration. Set external=true to use a managed Valkey/Redis
+# service; otherwise the official Valkey Helm chart is deployed in-cluster.
 valkey:
-  # Main switch: false = in-cluster Bitnami, true = external managed (ElastiCache, Azure Redis, etc.)
+  # controls the local Valkey wrapper. Set this to false with external=true.
+  enabled: false  
   external: false
-  
-  # Subchart control (automatically derived from 'external'):
-  # - external: false → enabled: true  (load and deploy Bitnami chart)
-  # - external: true  → enabled: false (skip Bitnami chart, saves time)
-  # IMPORTANT: Always set enabled = !external
-  # Default: false (enable explicitly in overrides for in-cluster Valkey)
-  enabled: false
-  
-  # ============================================
-  # In-cluster Bitnami Valkey configuration (used when external: false)
-  # These values pass through to the Bitnami Valkey subchart
-  # ============================================
-  valkey:
-    enabled: true
-    
-    image:
-      registry: docker.io
-      repository: bitnami/valkey
-      tag: "latest"
-      pullPolicy: IfNotPresent
-    
-    # Architecture: standalone for local/dev, replication for prod
-    architecture: replication  # Replication mode with primary + replicas
-    
-    # Authentication (disabled for local simplicity)
-    auth:
-      enabled: false
-      password: ""
-    
-    # Primary node configuration (used in standalone and replication)
-    primary:
-      podAnnotations:
-        # Exclude Valkey port from Istio - internal replication needs direct TCP
-        traffic.sidecar.istio.io/excludeInboundPorts: "6379"
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"
-      
-      service:
-        type: ClusterIP
-        port: 6379
-      
-      persistence:
-        enabled: true
-        size: 500Mi
-        storageClass: ""
-      
-      resources:
-        requests:
-          cpu: 50m
-          memory: 128Mi
-        limits:
-          cpu: 200m
-          memory: 256Mi
-    
-    # Replica configuration (for replication mode only)
-    replica:
-      replicaCount: 2  # 2 replicas for high availability
-      podAnnotations:
-        # Exclude Valkey port from Istio - internal replication needs direct TCP
-        traffic.sidecar.istio.io/excludeInboundPorts: "6379"
-        traffic.sidecar.istio.io/excludeOutboundPorts: "6379"
-      
-      persistence:
-        enabled: true
-        size: 500Mi
-    
-    # Valkey server configuration
-    commonConfiguration: |-
-      maxmemory 128mb
-      maxmemory-policy allkeys-lru
-      appendonly no
-      save ""
-  
-  # ============================================
-  # External Valkey/Redis configuration (used when external: true)
-  # ============================================
-  externalConfig:
-    
-    # ElastiCache endpoint
+  externalSettings:
     host: "clustercfg.dev-valkey-cluster.kquwra.euw2.cache.amazonaws.com"
     port: 6379
-    
-    # TLS settings (recommended for ElastiCache)
-    tls:
+    tlsEnabled: true
+    ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties
+  valkey:
+    # provide the necessary configuration for the local Valkey deployment
+    service:
+      port: 6379
+    replica:
       enabled: true
-    
-    # Authentication
-    auth:
-      enabled: true
-      # Option 1: Reference existing secret with auth token
-      existingSecret: ""  # e.g., "elasticache-auth-token"
-      secretKey: "auth-token"
-      # Option 2: Specify token directly (not recommended for prod)
-      token: ""
+      replicas: 2
+      replicationUser: default
+      minReplicasToWrite: 1
+      minReplicasMaxLag: 10
+      persistence:
+        storageClass: auto-ebs-sc2
+        size: 1Gi
+        accessModes:
+          - ReadWriteOnce
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain

@@ -118,10 +118,10 @@ vault:
           memory: 512Mi
       dataStorage:
         enabled: true
-        size: 10Gi
+        size: 5Gi
       auditStorage:
         enabled: true
-        size: 10Gi
+        size: 5Gi
       extraContainers:
         - name: vault-setup
           image: "amazon/aws-cli:2.22.35"
@@ -167,3 +167,9 @@ vault:
       pullPolicy: IfNotPresent
     keyShares: 5
     keyThreshold: 3
+
+  # Creates the federator client/server Kubernetes Secrets from Vault via VSO.
+  # However you need to populate the Vault path manually after Vault is running.
+  # the default path is /apps/client-server
+  staticSecrets:
+    enabled: false

@@ -3,11 +3,98 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: federator-client-properties
+  name:  {{ include "client.name" . }}-properties
   namespace: {{ .Release.Namespace }}
   labels:
     {{ include "federator-suite.client.labels" . | nindent 4 }}
 data:
   client.properties: |-
-{{ include "federator-suite.clientProperties" . | nindent 4 }}
+    # Identity Provider (IDP) Configuration
+    idp.client.id=${IDP_CLIENT_ID}
+    idp.jwks.url=${IDP_JWKS_URL}
+    idp.token.url=${IDP_TOKEN_URL}
+    idp.keystore.path=${IDP_KEYSTORE_PATH}
+    idp.truststore.path=/secrets/federation-cert/keycloak.truststore.jks
+    idp.mtls.enabled=${IDP_MTLS_ENABLED}
+    idp.keystore.password=${IDP_KEYSTORE_PASSWORD}
+    idp.truststore.password=${IDP_TRUSTSTORE_PASSWORD}
+
+    # Kafka Configuration (Sender)
+    kafka.sender.defaultKeySerializerClass=org.apache.kafka.common.serialization.BytesSerializer
+    kafka.sender.defaultValueSerializerClass=org.apache.kafka.common.serialization.BytesSerializer
+{{ if not .Values.kafka.external }}
+    # Internal Kafka Bootstrap Servers
+    kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}
+    kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
+    kafka.additional.security.protocol=SASL_PLAINTEXT
+    kafka.additional.sasl.mechanism=SCRAM-SHA-512
+{{- else }}
+    # External Kafka Bootstrap Servers
+    kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}
+    kafka.additional.sasl.jaas.config=${KAFKA_SASL_JAAS_CONFIG}
+    kafka.additional.security.protocol={{ .Values.kafka.externalSettings.securityProtocol | default "SASL_PLAINTEXT" }}
+    kafka.additional.sasl.mechanism={{ .Values.kafka.externalSettings.saslMechanism | default "SCRAM-SHA-512" }}
+{{- end }}  
+   
+    # Topic Configuration
+    kafka.topic.prefix={{ .Values.federatorClient.config.kafkaTopicPrefix | default (printf "Deprecated%s" (.Values.global.orgName | upper)) }}
+    kafka.consumerGroup={{ .Values.federatorClient.config.kafkaConsumerGroup | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
+
+{{ if not .Values.valkey.external }}
+    # Internal Redis/Valkey Configuration
+    redis.host={{ include "valkey.hostname" . }}
+    redis.port={{ .Values.valkey.valkey.service.port }}
+    redis.tls.enabled=false
+    redis.prefix={{ .Values.federatorClient.config.redisPrefix }}
+    redis.username=${VALKEY_USERNAME}
+    redis.password=${VALKEY_PASSWORD}
+    redis.aes.key=
+{{- else }}
+    # External Redis/Valkey Configuration
+    redis.host={{ include "valkey.hostname" . }}
+    redis.port={{ .Values.valkey.externalSettings.port }}
+    redis.tls.enabled={{ .Values.valkey.externalSettings.tlsEnabled | default false }}
+    redis.prefix={{ .Values.federatorClient.config.redisPrefix }}
+    redis.username=${VALKEY_USERNAME}
+    redis.password=${VALKEY_PASSWORD}
+    redis.aes.key=
+{{- end}}
+
+    # JobRunr Configuration
+    org.jobrunr.jobs.default-allow-concurrent-execution=false
+    jobs.dashboard.port=8085
+    jobs.dashboard.enabled=true
+
+    # Management Node
+    management.node.cache.ttl.seconds=60
+    management.node.request.timeout=60
+    management.node.base.url={{ .Values.global.managementNode.baseUrl }}
+
+    # Client TLS Configuration
+    client.mtlsEnabled={{ .Values.federatorClient.config.mtlsEnabled | default true }}
+    client.tlsEnabled={{ .Values.federatorClient.config.tlsEnabled | default true }}
+    client.p12FilePath=/secrets/federation-client-p12/${CLIENT_P12_FILENAME}
+    client.p12Password=${CLIENT_P12_PASSWORD}
+    client.truststoreFilePath=/secrets/federation-cert/keycloak.truststore.jks
+    client.truststorePassword=${TRUSTSTORE_PASSWORD}
+    client.keystorePassword=${CLIENT_KEYSTORE_PASSWORD}
+
+    # Connection Configuration
+    connections.configuration=/client-connections/connection-configuration.json
+
+    # File Storage Configuration
+    client.files.storage.provider={{ .Values.federatorClient.config.storage.provider | upper }}
+    {{- if eq (.Values.federatorClient.config.storage.provider | upper) "S3" }}
+    files.s3.bucket={{ .Values.federatorClient.config.storage.s3.bucket }}
+    aws.s3.region={{ .Values.federatorClient.config.storage.s3.region }}
+    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "AZURE" }}
+    azure.storage.connection.string={{ .Values.federatorClient.config.storage.azure.connectionString }}
+    azure.storage.account.name={{ .Values.federatorClient.config.storage.azure.accountName }}
+    azure.storage.endpoint={{ .Values.federatorClient.config.storage.azure.endpoint }}
+    files.azure.container={{ .Values.federatorClient.config.storage.azure.container }}
+    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "GCP" }}
+    files.gcp.bucket={{ .Values.federatorClient.config.storage.gcp.bucket }}
+    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "LOCAL" }}
+    client.files.temp.dir={{ .Values.federatorClient.config.storage.local.tempDir | default "" }}
+    {{- end }}
 {{- end }}

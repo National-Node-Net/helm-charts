@@ -1,0 +1,9 @@
+{{- if .Values.vault.staticSecrets.enabled }}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: federator-suite-vault-internal
+  namespace: {{ .Release.Namespace }}
+spec:
+  address: {{ printf "http://%s-vault.%s.svc.cluster.local:8200" .Release.Name .Release.Namespace | quote }}
+{{- end }}

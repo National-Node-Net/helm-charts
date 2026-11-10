@@ -1,0 +1,34 @@
+{{- if .Values.serviceMesh.istio.enabled }}
+
+# Vault deliberately bypasses Istio interception on ports 8200 and 8201.
+#
+# The Vault listener is configured with `tls_disable = 1`, so its API listener
+# on 8200 and Raft cluster listener on 8201 speak plaintext HTTP/TCP.  During
+# Vault bootstrap the setup container joins Raft peers directly over the Vault
+# API port.  If those ports are captured by a namespace-wide STRICT mTLS policy,
+# the direct bootstrap traffic reaches Envoy without an Istio client certificate
+# and Vault cluster formation fails with `NR filter_chain_not_found`.
+#
+# The Vault pod annotations therefore exclude 8200 and 8201 from the sidecar.
+# This also means that callers with an Istio sidecar must not auto-upgrade their
+# connection to Vault to Istio mTLS: Envoy would send a TLS handshake directly
+# to Vault's plaintext listener and return `WRONG_VERSION_NUMBER` / HTTP 503.
+#
+# Keep this DestinationRule while Vault uses the plaintext listener and those
+# exclusions. Certificate-manager exposed this mismatch, but DestinationRules
+# select the destination host rather than the calling workload: this rule makes
+# every meshed caller of the Vault active Service use plaintext, matching the
+# existing Vault/Raft topology.
+# Remove it only as part of a coordinated change that makes Vault bootstrap,
+# Raft traffic, and the Vault listener fully mesh-compatible.
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: vault-active-plaintext
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: {{ printf "%s-vault-active.%s.svc.cluster.local" .Release.Name .Release.Namespace }}
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+{{- end }}
