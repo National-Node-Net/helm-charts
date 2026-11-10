@@ -23,6 +23,14 @@ kafka:
 valkey:
   external: false  # Use in-cluster Valkey
   enabled: true    # Deploy Bitnami Valkey subchart
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
 
 # Federator Server - AWS Dev
 federatorServer:
@@ -104,15 +112,6 @@ kafkaUi:
   enabled: true
   image:
     repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-
-valkeyUi:
-  enabled: true
-  image:
-    repository: redis/redisinsight
     tag: latest
     pullPolicy: IfNotPresent
   service:

@@ -22,6 +22,14 @@ kafka:
 # External ElastiCache Redis/Valkey for EKS
 valkey:
   external: true
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
   externalConfig:
     host: "clustercfg.dev-valkey-cluster.kquwra.euw2.cache.amazonaws.com"
     port: 6379
@@ -111,15 +119,6 @@ kafkaUi:
   enabled: true
   image:
     repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-
-valkeyUi:
-  enabled: true
-  image:
-    repository: redis/redisinsight
     tag: latest
     pullPolicy: IfNotPresent
   service:

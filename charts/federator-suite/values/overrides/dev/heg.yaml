@@ -29,6 +29,16 @@ kafka:
 valkey:
   external: false
   enabled: true  # Enable in-cluster Bitnami Valkey
+  ui:
+    enabled: false
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 
 # Federator Server - Azure Dev
 federatorServer:
@@ -114,17 +124,6 @@ kafkaUi:
   enabled: true
   image:
     repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: LoadBalancer
-    annotations:
-      service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-
-valkeyUi:
-  enabled: false
-  image:
-    repository: redis/redisinsight
     tag: latest
     pullPolicy: IfNotPresent
   service:

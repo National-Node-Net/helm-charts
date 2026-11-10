@@ -1,4 +1,4 @@
-{{- if .Values.valkeyUi.enabled }}
+{{- if .Values.valkey.ui.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -8,19 +8,19 @@ metadata:
   labels:
     app: valkey-ui
     {{ include "federator-suite.labels" . | nindent 4 }}
-  {{- with .Values.valkeyUi.service.annotations }}
+  {{- with .Values.valkey.ui.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ .Values.valkeyUi.service.type }}
-  {{- if and (eq .Values.valkeyUi.service.type "NodePort") .Values.valkeyUi.service.nodePort }}
+  type: {{ .Values.valkey.ui.service.type }}
+  {{- if and (eq .Values.valkey.ui.service.type "NodePort") .Values.valkey.ui.service.nodePort }}
   ports:
   - port: 5540
     targetPort: http
     protocol: TCP
     name: http
-    nodePort: {{ .Values.valkeyUi.service.nodePort }}
+    nodePort: {{ .Values.valkey.ui.service.nodePort }}
   {{- else }}
   ports:
   - port: 5540
