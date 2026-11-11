@@ -41,6 +41,15 @@ kafka:
 valkey:
   external: false
   enabled: true  # Enable in-cluster Bitnami Valkey
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
+      annotations: {}
 
 # Federator Server - AWS Dev
 federatorServer:
@@ -119,21 +128,6 @@ federatorClient:
         bucket: "537124944113-federator-orgid2-bcc"
         region: "eu-west-2"
   
-  # Override client-specific env for BCC
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org1-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-
-valkeyUi:
-  enabled: true
-  image:
-    repository: redis/redisinsight
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-    annotations: {}
-
 # Istio configuration for EKS
 # Enabled to match ia-federation namespace configuration
 serviceMesh:

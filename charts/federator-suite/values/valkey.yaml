@@ -1,9 +1,8 @@
 # Valkey configuration. Set external=true to use a managed Valkey/Redis
 # service; otherwise the official Valkey Helm chart is deployed in-cluster.
 valkey:
-  # controls the local Valkey wrapper. Set this to false with external=true.
-  enabled: false  
-  external: false
+  enabled: true # Disable if using external Valkey.
+  external: false # Set true when using external Valkey.
   externalSettings:
     host: "clustercfg.dev-valkey-cluster.kquwra.euw2.cache.amazonaws.com"
     port: 6379
@@ -27,3 +26,11 @@ valkey:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
         whenScaled: Retain
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: "3.8.0"
+    service:
+      type: NodePort
+      nodePort: 30091  # Access via http://localhost:30091 (mapped in Kind)

@@ -16,11 +16,6 @@ federatorClient:
     kafkaConsumerGroup: "ndtp.dbt.gov.uk.bcc"
     redisPrefix: "federator-client-bcc"
   
-  # Override client-specific env
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org1-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-
 # BCC-specific secrets (override in values-secrets.yaml)
 secrets:
   idp:
