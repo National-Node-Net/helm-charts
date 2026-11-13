@@ -1,0 +1,101 @@
+{{- if .Values.vault.setup.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-init-policys
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "federator-suite.labels" . | nindent 4 }}
+    app.kubernetes.io/component: vault
+data:
+  certificate-manager-role.json: |
+    {
+      "bound_service_account_names": [{{ include "certificateManager.serviceAccountName" . | toJson }}],
+      "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
+      "policies": ["certificate-manager"],
+      "ttl": "1h"
+    }
+  
+  certificate-manager-policy.hcl: |
+    path "secret/data/certificate-manager/*" {
+      capabilities = ["create", "update", "read", "list"]
+    }
+
+    path "secret/metadata/certificate-manager/*" {
+      capabilities = ["list", "read"]
+    }
+
+    path "secret/delete/certificate-manager/*" {
+      capabilities = ["update"]
+    }
+
+    path "secret/undelete/certificate-manager/*" {
+      capabilities = ["update"]
+    }
+
+    path "node-net/data/*" {
+      capabilities = ["create", "update", "read", "list", "delete"]
+    }
+
+    path "node-net/metadata/*" {
+      capabilities = ["list", "read", "delete"]
+    }
+
+    path "node-net/delete/*" {
+      capabilities = ["update"]
+    }
+
+    path "node-net/undelete/*" {
+      capabilities = ["update"]
+    }
+
+    path "sys/mounts" {
+      capabilities = ["read"]
+    }
+
+    path "sys/mounts/*" {
+      capabilities = ["read"]
+    }
+
+  client-server-vault-reader-role.json: |
+    {
+      "bound_service_account_names": ["federator-suite-vault-internal"],
+      "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
+      "policies": ["federator-suite-client-server-vault-reader"],
+      "ttl": "1h"
+    }
+
+  client-server-vault-reader-policy.hcl: |
+    path "secret/data/apps/client-server" {
+      capabilities = ["read"]
+    }
+
+    # Generated federator certificate bundle maintained by certificate-manager.
+    # node-net is a KV v2 mount, not a folder under the secret mount.
+    path "node-net/data/client" {
+      capabilities = ["read"]
+    }
+
+    path "secret/data/apps/valkey" {
+      capabilities = ["read"]
+    }
+
+    path "secret/metadata/apps/client-server" {
+      capabilities = ["read", "list"]
+    }
+
+    path "node-net/metadata/client" {
+      capabilities = ["read", "list"]
+    }
+
+    path "secret/data/apps/initial-bootstrap" {
+      capabilities = ["read"]
+    }
+
+  # Keep generated passwords to the standard Base64 alphabet.
+  valkey-password-rule-policy.hcl: |
+    length = 32
+    rule "charset" {
+      charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    }
+{{- end }}

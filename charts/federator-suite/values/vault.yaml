@@ -136,9 +136,13 @@ vault:
               readOnly: true
       volumes:
         - name: vault-setup-script
-          configMap:
-            name: vault-setup-script
+          projected:
             defaultMode: 0555
+            sources:
+              - configMap:
+                  name: vault-setup-script
+              - configMap:
+                  name: vault-init-policys
     # Vault UI — enabled for port-forward access
     ui:
       enabled: true
