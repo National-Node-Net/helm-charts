@@ -13,9 +13,6 @@ data:
     #!/bin/sh
     set -e
 
-    # Baseline logic aligned with management-node vault setup script:
-    # /home/vagrant/Documents/clones/ndtp-application-continuous-delivery/applications/ia-node/core/bases/management-node/vault/vault-setup-configmap.yaml
-
     VAULT_ADDR="http://localhost:8200"
     CLOUD_PROVIDER="${CLOUD_PROVIDER:-{{- if .Values.vault.devMode -}}local{{- else -}}{{ include "federator-suite.cloudProvider" . }}{{- end -}}}"
     AWS_REGION="${AWS_REGION:-{{ .Values.vault.seal.aws.region | default "eu-west-2" }}}"
@@ -25,7 +22,6 @@ data:
     VAULT_REPLICAS="{{ .Values.vault.vault.server.ha.replicas | default (.Values.vault.ha.replicas | default 1) }}"
     KEY_SHARES="${VAULT_KEY_SHARES:-{{ .Values.vault.setup.keyShares | default 5 }}}"
     KEY_THRESHOLD="${VAULT_KEY_THRESHOLD:-{{ .Values.vault.setup.keyThreshold | default 3 }}}"
-    CERT_MANAGER_SA="{{ include "certificateManager.serviceAccountName" . }}"
     CERT_MANAGER_TOKEN_SECRET="{{ include "certificateManager.name" . }}-vault-token"
     NAMESPACE={{ .Release.Namespace }}
 
@@ -33,6 +29,7 @@ data:
     fail() { echo "[vault-setup] ERROR: $*" >&2; exit 1; }
 
     json_val() {
+      local compact
       compact="$(printf '%s' "$2" | tr -d '\n\r')"
       printf '%s' "$compact" \
         | grep -oE "\"${1}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" \
@@ -41,6 +38,7 @@ data:
     }
 
     json_bool() {
+      local compact
       compact="$(printf '%s' "$2" | tr -d '\n\r')"
       printf '%s' "$compact" \
         | grep -oE "\"${1}\"[[:space:]]*:[[:space:]]*(true|false)" \
@@ -49,32 +47,254 @@ data:
     }
 
     json_array() {
+      local compact
       compact="$(printf '%s' "$2" | tr -d '\n\r')"
       printf '%s' "$compact" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p"
     }
 
     vault_get() {
-      curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" "${VAULT_ADDR}$1" 2>/dev/null
+      local path="$1"
+      curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" "${VAULT_ADDR}${path}" 2>/dev/null
     }
 
     vault_post() {
-      curl -s -X POST \
-        -H "X-Vault-Token: ${VAULT_TOKEN}" \
-        -H "Content-Type: application/json" \
-        -d "${2:-{\}}" \
-        "${VAULT_ADDR}$1" 2>/dev/null
+      local path="$1" payload="${2:-{\}}"
+      curl -fsS -X POST -H "X-Vault-Token: ${VAULT_TOKEN}" \
+        -H "Content-Type: application/json" -d "$payload" "${VAULT_ADDR}${path}"
     }
 
-    write_policy() {
-      policy_name="$1"
-      # Raw, readable Vault policy HCL from the POLICY heredoc.
-      policy_document="$2"
-      # The HTTP API requires policy HCL as a JSON string: escape quotes and
-      # represent line breaks as JSON newline escape sequences while retaining
-      # the readable source above.
-      policy_json="$(printf '%s\n' "$policy_document" | sed 's/"/\\"/g' | awk 'BEGIN { ORS="" } { printf "%s%s", NR == 1 ? "" : "\\n", $0 }')"
-      # Create or update the named ACL policy through Vault's HTTP API.
-      vault_post "/v1/sys/policies/acl/${policy_name}" "{\"policy\":\"${policy_json}\"}" >/dev/null
+    vault_policy_write() {
+      local type="$1" name="$2" file="$3" policy
+      [ -r "$file" ] || fail "Policy file not readable: ${file}"
+      policy="$(base64 < "$file" | tr -d '\n')"
+      vault_post "/v1/sys/policies/${type}/${name}" "{\"policy\":\"${policy}\"}" >/dev/null
+    }
+
+    vault_role_write() {
+      local name="$1" file="$2" role
+      role="$(cat "$file")"
+      vault_post "/v1/auth/kubernetes/role/${name}" "$role" >/dev/null
+    }
+
+    vault_write_secret() {
+      local path="$1" data="$2"
+      vault_post "/v1/secret/data/${path}" "{\"data\":${data}}" >/dev/null
+    }
+
+    aws_secrets_manager() {
+      local operation="$1" payload="${2:-}"
+      if [ "$operation" = "read" ]; then
+        aws secretsmanager get-secret-value --region "$AWS_REGION" \
+          --secret-id "$SECRETS_MANAGER_SECRET_NAME" --query SecretString --output text
+      else
+        aws secretsmanager put-secret-value --region "$AWS_REGION" \
+          --secret-id "$SECRETS_MANAGER_SECRET_NAME" --secret-string "$payload" \
+          --version-stages AWSCURRENT >/dev/null
+      fi
+    }
+
+    azure_key_vault() {
+      local operation="$1" payload="${2:-}"
+      [ -n "$AZURE_VAULT_NAME" ] || fail "AZURE_VAULT_NAME is required for azure mode"
+      az login --identity --allow-no-subscriptions >/dev/null 2>&1 || true
+      if [ "$operation" = "read" ]; then
+        az keyvault secret show --vault-name "$AZURE_VAULT_NAME" \
+          --name "$SECRETS_MANAGER_SECRET_NAME" --query value -o tsv
+      else
+        az keyvault secret set --vault-name "$AZURE_VAULT_NAME" \
+          --name "$SECRETS_MANAGER_SECRET_NAME" --value "$payload" >/dev/null
+      fi
+    }
+
+    gcp_secret_manager() {
+      local operation="$1" payload="${2:-}"
+      local secret_name="${SECRETS_MANAGER_SECRET_NAME##*/}" project="$GCP_PROJECT"
+      if [ -z "$project" ]; then
+        local resource_path="/${SECRETS_MANAGER_SECRET_NAME}"
+        case "$resource_path" in
+          */projects/*)
+            project="${resource_path#*/projects/}"
+            project="${project%%/*}"
+            ;;
+        esac
+      fi
+      [ -n "$project" ] || fail "GCP_PROJECT is required for gcp mode"
+      if [ "$operation" = "read" ]; then
+        gcloud secrets versions access latest --secret "$secret_name" --project "$project"
+      else
+        printf '%s' "$payload" | gcloud secrets versions add "$secret_name" \
+          --project "$project" --data-file=- >/dev/null
+      fi
+    }
+
+    kubernetes_request() {
+      local method="$1" path="$2" token
+      shift 2
+      token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+      curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+        -H "Authorization: Bearer ${token}" -H "Content-Type: application/json" \
+        -X "$method" "https://kubernetes.default.svc/api/v1/namespaces/${NAMESPACE}/${path}" "$@"
+    }
+
+    write_kubernetes_secret() {
+      local name="$1" key="$2" value="$3" encoded_value payload status
+      encoded_value="$(printf '%s' "$value" | base64 | tr -d '\n')"
+      payload="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${name}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"Opaque\",\"data\":{\"${key}\":\"${encoded_value}\"}}"
+      status="$(kubernetes_request POST secrets -d "$payload" -o /dev/null -w '%{http_code}')"
+      if [ "$status" = "409" ]; then
+        status="$(kubernetes_request PUT "secrets/${name}" -d "$payload" -o /dev/null -w '%{http_code}')"
+      fi
+      case "$status" in
+        2??) ;;
+        *) fail "Failed writing Kubernetes secret ${name} (HTTP ${status})" ;;
+      esac
+    }
+
+    kubernetes_credentials() {
+      local operation="$1" payload="${2:-}" secret_body encoded_payload root_token
+      if [ "$operation" = "read" ]; then
+        secret_body="$(kubernetes_request GET "secrets/${SECRETS_MANAGER_SECRET_NAME}")"
+        encoded_payload="$(json_val vault-credentials "$secret_body")"
+        [ -n "$encoded_payload" ] || fail "vault-credentials missing in Kubernetes secret ${SECRETS_MANAGER_SECRET_NAME}"
+        printf '%s' "$encoded_payload" | base64 -d
+      else
+        write_kubernetes_secret "$SECRETS_MANAGER_SECRET_NAME" vault-credentials "$payload"
+        root_token="$(json_val root_token "$payload")"
+        write_kubernetes_secret "$CERT_MANAGER_TOKEN_SECRET" vault-token "$root_token"
+      fi
+    }
+
+    # Reads print credentials; writes receive the payload as the second argument.
+    vault_credentials() {
+      local operation="$1" payload="${2:-}"
+      case "$operation" in
+        read|write) ;;
+        *) fail "Unsupported credential operation: ${operation}" ;;
+      esac
+      case "$CLOUD_PROVIDER" in
+        local) kubernetes_credentials "$operation" "$payload" ;;
+        aws) aws_secrets_manager "$operation" "$payload" ;;
+        azure) azure_key_vault "$operation" "$payload" ;;
+        gcp) gcp_secret_manager "$operation" "$payload" ;;
+        *) fail "Unsupported CLOUD_PROVIDER=${CLOUD_PROVIDER}" ;;
+      esac
+    }
+
+    wait_for_vault() {
+      local address="$1" attempts="${2:-60}" attempt=0
+      until curl -s --connect-timeout 3 -o /dev/null "${address}/v1/sys/health" 2>/dev/null; do
+        attempt=$((attempt + 1))
+        [ "$attempt" -lt "$attempts" ] || return 1
+        sleep 5
+      done
+    }
+
+    unseal_vault() {
+      local init_response="$1" keys key_item key attempt=0
+      if [ "$CLOUD_PROVIDER" = "local" ]; then
+        log "Local mode detected. Unsealing with generated keys."
+        keys="$(json_array keys_base64 "$init_response" | tr ',' '\n')"
+        [ -n "$keys" ] || fail "Unseal keys not found in init response"
+        for key_item in $keys; do
+          key="$(printf '%s' "$key_item" | tr -d '\" ')"
+          [ -n "$key" ] || continue
+          vault_post /v1/sys/unseal "{\"key\":\"${key}\"}" >/dev/null
+          [ "$(json_bool sealed "$(vault_get /v1/sys/seal-status)")" = "false" ] && break
+        done
+      else
+        log "Waiting for KMS auto-unseal."
+        until [ "$(json_bool sealed "$(vault_get /v1/sys/seal-status)")" = "false" ]; do
+          attempt=$((attempt + 1))
+          [ "$attempt" -lt 60 ] || fail "Vault still sealed after 300s"
+          sleep 5
+        done
+      fi
+    }
+
+    join_raft_peers() {
+      local statefulset_name="$1" index peer_address
+      for index in $(seq 1 $((VAULT_REPLICAS - 1))); do
+        peer_address="http://${statefulset_name}-${index}.${statefulset_name}-internal:8200"
+        log "Waiting for ${statefulset_name}-${index} to be reachable."
+        if ! wait_for_vault "$peer_address" 30; then
+          log "WARNING: ${statefulset_name}-${index} not reachable after 150s. Skipping join."
+          continue
+        fi
+        curl -s -X POST -H "Content-Type: application/json" \
+          -d "{\"leader_api_addr\":\"http://${statefulset_name}-0.${statefulset_name}-internal:8200\"}" \
+          "${peer_address}/v1/sys/storage/raft/join" >/dev/null || true
+        log "Raft join request sent to ${statefulset_name}-${index}."
+      done
+    }
+
+    configure_secrets_engines() {
+      local mounts mount
+      mounts="$(vault_get /v1/sys/mounts)"
+      for mount in secret node-net; do
+        if printf '%s' "$mounts" | grep -q "\"${mount}/\""; then
+          log "KV v2 mount ${mount}/ already present."
+        else
+          vault_post "/v1/sys/mounts/${mount}" '{"type":"kv","options":{"version":"2"}}' >/dev/null
+          log "Enabled KV v2 mount ${mount}/."
+        fi
+      done
+    }
+
+{{- if not .Values.valkey.external }}
+    configure_valkey_credentials() {
+      local valkey_secret valkey_username valkey_password
+      local sentinel_username sentinel_password password_response
+      vault_policy_write password valkey-password /scripts/valkey-password-rule-policy.hcl
+
+      valkey_secret="$(vault_get /v1/secret/data/apps/valkey)"
+      valkey_username="$(json_val valkey_username "$valkey_secret")"
+      valkey_password="$(json_val valkey_password "$valkey_secret")"
+      sentinel_username="$(json_val sentinel_username "$valkey_secret")"
+      sentinel_password="$(json_val sentinel_password "$valkey_secret")"
+
+      if [ -n "$valkey_username" ] && [ -n "$valkey_password" ] && \
+         [ -n "$sentinel_username" ] && [ -n "$sentinel_password" ]; then
+        log "Internal Valkey and Sentinel credentials already exist in secret/apps/valkey."
+      else
+        [ -n "$valkey_username" ] || valkey_username="default"
+        [ -n "$sentinel_username" ] || sentinel_username="default"
+
+        if [ -z "$valkey_password" ]; then
+          password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
+          valkey_password="$(json_val password "$password_response")"
+          [ -n "$valkey_password" ] || fail "Vault did not generate a Valkey password"
+        fi
+        if [ -z "$sentinel_password" ]; then
+          password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
+          sentinel_password="$(json_val password "$password_response")"
+          [ -n "$sentinel_password" ] || fail "Vault did not generate a Sentinel password"
+        fi
+
+        vault_write_secret "apps/valkey" "{\"valkey_username\":\"${valkey_username}\",\"valkey_password\":\"${valkey_password}\",\"sentinel_username\":\"${sentinel_username}\",\"sentinel_password\":\"${sentinel_password}\"}"
+
+        log "Created internal Valkey and Sentinel credentials in secret/apps/valkey."
+      fi
+    }
+{{- end }}
+
+    configure_kubernetes_auth() {
+      local auth_methods ca_cert
+      auth_methods="$(vault_get /v1/sys/auth)"
+      if ! printf '%s' "$auth_methods" | grep -q '"kubernetes/"'; then
+        vault_post /v1/sys/auth/kubernetes '{"type":"kubernetes"}' >/dev/null
+        log "Enabled Kubernetes auth."
+      else
+        log "Kubernetes auth already enabled."
+      fi
+      ca_cert="$(sed 's/$/\\n/' /var/run/secrets/kubernetes.io/serviceaccount/ca.crt | tr -d '\n')"
+      vault_post /v1/auth/kubernetes/config "{\"kubernetes_host\":\"https://kubernetes.default.svc\",\"kubernetes_ca_cert\":\"${ca_cert}\",\"disable_iss_validation\":true}" >/dev/null
+
+      vault_policy_write acl certificate-manager /scripts/certificate-manager-policy.hcl
+      vault_role_write certificate-manager /scripts/certificate-manager-role.json
+{{- if .Values.vault.staticSecrets.enabled }}
+      vault_policy_write acl federator-suite-client-server-vault-reader /scripts/client-server-vault-reader-policy.hcl
+      vault_role_write federator-suite-client-server-vault-reader /scripts/client-server-vault-reader-role.json
+{{- end }}
     }
 
     park_idle() {
@@ -82,346 +302,63 @@ data:
       while true; do sleep 3600; done
     }
 
-    ordinal="${HOSTNAME##*-}"
-    if [ "$ordinal" != "0" ]; then
-      log "Pod ${HOSTNAME} is not ordinal-0. Skipping setup."
-      park_idle
-    fi
+    main() {
+      local ordinal="${HOSTNAME##*-}" statefulset_name="${HOSTNAME%-*}"
+      # Shell locals are visible to called functions, including the Vault helpers.
+      local VAULT_TOKEN=""
+      local init_state init_payload init_response credentials recovery_keys unseal_keys token_check
 
-    [ -z "$SECRETS_MANAGER_SECRET_NAME" ] && fail "SECRETS_MANAGER_SECRET_NAME is required"
+      if [ "$ordinal" != "0" ]; then
+        log "Pod ${HOSTNAME} is not ordinal-0. Skipping setup."
+        park_idle
+      fi
+      [ -n "$SECRETS_MANAGER_SECRET_NAME" ] || fail "SECRETS_MANAGER_SECRET_NAME is required"
 
-    sts_name="${HOSTNAME%-${ordinal}}"
-    sts_name="${sts_name%-}"
-    cert_manager_sa="{{ include "certificateManager.serviceAccountName" . }}"
-    cert_manager_token_secret="{{ include "certificateManager.name" . }}-vault-token"
+      log "Phase 1 - Waiting for Vault API (${VAULT_ADDR})"
+      wait_for_vault "$VAULT_ADDR" || fail "Vault API unreachable after 300s"
+      log "Vault API reachable."
 
+      log "Phase 2 - Init / token recovery"
+      init_state="$(json_bool initialized "$(vault_get /v1/sys/init)")"
+      if [ "$init_state" != "true" ]; then
+        log "Vault not initialized. Running init."
+        if [ "$CLOUD_PROVIDER" = "local" ]; then
+          init_payload="{\"secret_shares\":${KEY_SHARES},\"secret_threshold\":${KEY_THRESHOLD}}"
+        else
+          init_payload="{\"recovery_shares\":${KEY_SHARES},\"recovery_threshold\":${KEY_THRESHOLD}}"
+        fi
+        init_response="$(vault_post /v1/sys/init "$init_payload")"
+        VAULT_TOKEN="$(json_val root_token "$init_response")"
+        [ -n "$VAULT_TOKEN" ] || fail "Init failed: root token not found"
+        unseal_vault "$init_response"
 
-    log "Phase 1 - Waiting for Vault API (${VAULT_ADDR})"
-    n=0
-    until curl -s --connect-timeout 3 -o /dev/null "${VAULT_ADDR}/v1/sys/health" 2>/dev/null; do
-      n=$((n+1))
-      [ "$n" -ge 60 ] && fail "Vault API unreachable after 300s"
-      sleep 5
-    done
-    log "Vault API reachable."
-
-    log "Phase 2 - Init / token recovery"
-    VAULT_TOKEN=""
-    INIT_RESP=""
-    init_state="$(json_bool initialized "$(vault_get /v1/sys/init)")"
-
-    if [ "$init_state" != "true" ]; then
-      log "Vault not initialized. Running init."
-      if [ "$CLOUD_PROVIDER" = "local" ]; then
-        INIT_PAYLOAD="{\"secret_shares\":${KEY_SHARES},\"secret_threshold\":${KEY_THRESHOLD}}"
+        log "Storing init credentials in secret backend (${CLOUD_PROVIDER})."
+        recovery_keys="$(json_array recovery_keys_base64 "$init_response")"
+        unseal_keys="$(json_array keys_base64 "$init_response")"
+        credentials="{\"root_token\":\"${VAULT_TOKEN}\",\"recovery_keys_b64\":[${recovery_keys}],\"unseal_keys_b64\":[${unseal_keys}]}"
+        vault_credentials write "$credentials"
       else
-        INIT_PAYLOAD="{\"recovery_shares\":${KEY_SHARES},\"recovery_threshold\":${KEY_THRESHOLD}}"
-      fi
-      INIT_RESP="$(vault_post /v1/sys/init "$INIT_PAYLOAD")"
-      VAULT_TOKEN="$(json_val root_token "$INIT_RESP")"
-      [ -z "$VAULT_TOKEN" ] && fail "Init failed: root token not found (response: ${INIT_RESP})"
-
-      if [ "$CLOUD_PROVIDER" = "local" ]; then
-        log "Local mode detected. Unsealing with generated keys."
-        keys_csv="$(json_array keys_base64 "$INIT_RESP")"
-        [ -z "$keys_csv" ] && fail "Unseal keys not found in init response"
-        old_ifs="$IFS"
-        IFS=,
-        for key_item in $keys_csv; do
-          key="$(printf '%s' "$key_item" | tr -d '" ' )"
-          [ -z "$key" ] && continue
-          vault_post /v1/sys/unseal "{\"key\":\"${key}\"}" > /dev/null
-          sealed="$(json_bool sealed "$(curl -s ${VAULT_ADDR}/v1/sys/seal-status 2>/dev/null)")"
-          [ "$sealed" = "false" ] && break
-        done
-        IFS="$old_ifs"
-      else
-        log "Waiting for KMS auto-unseal."
-        n=0
-        until [ "$(json_bool sealed "$(curl -s ${VAULT_ADDR}/v1/sys/seal-status 2>/dev/null)")" = "false" ]; do
-          n=$((n+1))
-          [ "$n" -ge 60 ] && fail "Vault still sealed after 300s"
-          sleep 5
-        done
+        log "Vault already initialized. Retrieving token from backend."
+        credentials="$(vault_credentials read)"
+        VAULT_TOKEN="$(json_val root_token "$credentials")"
+        [ -n "$VAULT_TOKEN" ] || fail "root_token not found in secret backend payload"
       fi
 
-      log "Storing init credentials in secret backend (${CLOUD_PROVIDER})."
-      recovery_keys="$(json_array recovery_keys_base64 "$INIT_RESP")"
-      unseal_keys="$(json_array keys_base64 "$INIT_RESP")"
-      secret_payload="{\"root_token\":\"${VAULT_TOKEN}\",\"recovery_keys_b64\":[${recovery_keys}],\"unseal_keys_b64\":[${unseal_keys}]}"
+      log "Phase 3 - Joining $((VAULT_REPLICAS - 1)) Raft peer(s)"
+      join_raft_peers "$statefulset_name"
+      token_check="$(vault_get /v1/auth/token/lookup-self)"
+      printf '%s' "$token_check" | grep -q '"id"' || fail "Root token validation failed"
 
-      case "$CLOUD_PROVIDER" in
-        local)
-          kube_token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
-          kube_api="https://kubernetes.default.svc"
-          ca_cert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-
-          encoded_payload="$(printf '%s' "$secret_payload" | base64 | tr -d '\n')"
-          secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRETS_MANAGER_SECRET_NAME}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"Opaque\",\"data\":{\"vault-credentials\":\"${encoded_payload}\"}}"
-
-          code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets")"
-          if [ "$code" = "409" ]; then
-            code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
-          fi
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            fail "Failed writing k8s secret ${SECRETS_MANAGER_SECRET_NAME} (HTTP ${code})"
-          fi
-
-          encoded_token="$(printf '%s' "$VAULT_TOKEN" | base64 | tr -d '\n')"
-          cm_secret_json="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${cert_manager_token_secret}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"Opaque\",\"data\":{\"vault-token\":\"${encoded_token}\"}}"
-          cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X POST -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets")"
-          if [ "$cm_code" = "409" ]; then
-            cm_code="$(curl -s -o /dev/null -w '%{http_code}' --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" -H "Content-Type: application/json" -X PUT -d "$cm_secret_json" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${cert_manager_token_secret}")"
-          fi
-          if [ "$cm_code" -lt 200 ] || [ "$cm_code" -ge 300 ]; then
-            fail "Failed writing k8s secret ${cert_manager_token_secret} (HTTP ${cm_code})"
-          fi
-          ;;
-        aws)
-          aws secretsmanager put-secret-value \
-            --region "$AWS_REGION" \
-            --secret-id "$SECRETS_MANAGER_SECRET_NAME" \
-            --secret-string "$secret_payload" \
-            --version-stages AWSCURRENT >/dev/null
-          ;;
-        gcp)
-          gcp_secret="$(printf '%s' "$SECRETS_MANAGER_SECRET_NAME" | awk -F/ '{print $NF}')"
-          if [ -z "${GCP_PROJECT:-}" ]; then
-            GCP_PROJECT="$(printf '%s' "$SECRETS_MANAGER_SECRET_NAME" | awk -F/ '{for(i=1;i<=NF;i++) if($i=="projects") {print $(i+1); exit}}')"
-          fi
-          [ -z "${GCP_PROJECT:-}" ] && fail "GCP_PROJECT is required for gcp mode"
-          printf '%s' "$secret_payload" | gcloud secrets versions add "$gcp_secret" --project "$GCP_PROJECT" --data-file=- >/dev/null
-          ;;
-        azure)
-          [ -z "${AZURE_VAULT_NAME:-}" ] && fail "AZURE_VAULT_NAME is required for azure mode"
-          az login --identity --allow-no-subscriptions >/dev/null 2>&1 || true
-          az keyvault secret set --vault-name "$AZURE_VAULT_NAME" --name "$SECRETS_MANAGER_SECRET_NAME" --value "$secret_payload" >/dev/null
-          ;;
-        *)
-          fail "Unsupported CLOUD_PROVIDER=${CLOUD_PROVIDER}"
-          ;;
-      esac
-    else
-      log "Vault already initialized. Retrieving token from backend."
-      case "$CLOUD_PROVIDER" in
-        local)
-          kube_token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
-          kube_api="https://kubernetes.default.svc"
-          ca_cert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-          secret_body="$(curl -s --cacert "$ca_cert" -H "Authorization: Bearer ${kube_token}" "${kube_api}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRETS_MANAGER_SECRET_NAME}")"
-          encoded_blob="$(printf '%s' "$secret_body" | grep -o '"vault-credentials":"[^"]*"' | head -1 | cut -d'"' -f4)"
-          [ -z "$encoded_blob" ] && fail "vault-credentials missing in k8s secret ${SECRETS_MANAGER_SECRET_NAME}"
-          sm_json="$(printf '%s' "$encoded_blob" | base64 -d 2>/dev/null || true)"
-          ;;
-        aws)
-          sm_json="$(aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRETS_MANAGER_SECRET_NAME" --query SecretString --output text 2>/dev/null || true)"
-          ;;
-        gcp)
-          gcp_secret="$(printf '%s' "$SECRETS_MANAGER_SECRET_NAME" | awk -F/ '{print $NF}')"
-          if [ -z "${GCP_PROJECT:-}" ]; then
-            GCP_PROJECT="$(printf '%s' "$SECRETS_MANAGER_SECRET_NAME" | awk -F/ '{for(i=1;i<=NF;i++) if($i=="projects") {print $(i+1); exit}}')"
-          fi
-          [ -z "${GCP_PROJECT:-}" ] && fail "GCP_PROJECT is required for gcp mode"
-          sm_json="$(gcloud secrets versions access latest --secret "$gcp_secret" --project "$GCP_PROJECT" 2>/dev/null || true)"
-          ;;
-        azure)
-          [ -z "${AZURE_VAULT_NAME:-}" ] && fail "AZURE_VAULT_NAME is required for azure mode"
-          az login --identity --allow-no-subscriptions >/dev/null 2>&1 || true
-          sm_json="$(az keyvault secret show --vault-name "$AZURE_VAULT_NAME" --name "$SECRETS_MANAGER_SECRET_NAME" --query value -o tsv 2>/dev/null || true)"
-          ;;
-        *)
-          fail "Unsupported CLOUD_PROVIDER=${CLOUD_PROVIDER}"
-          ;;
-      esac
-
-      VAULT_TOKEN="$(json_val root_token "$sm_json")"
-      [ -z "$VAULT_TOKEN" ] && fail "root_token not found in secret backend payload"
-    fi
-
-    log "Phase 3 - Joining $((VAULT_REPLICAS - 1)) Raft peer(s)"
-    for i in $(seq 1 $((VAULT_REPLICAS - 1))); do
-      peer_addr="http://${sts_name}-${i}.${sts_name}-internal:8200"
-      log "Waiting for ${sts_name}-${i} to be reachable."
-      peer_n=0
-      until curl -s --connect-timeout 3 -o /dev/null "${peer_addr}/v1/sys/health" 2>/dev/null; do
-        peer_n=$((peer_n+1))
-        [ "$peer_n" -ge 30 ] && { log "WARNING: ${sts_name}-${i} not reachable after 150s. Skipping join."; break; }
-        sleep 5
-      done
-      if [ "$peer_n" -lt 30 ]; then
-        curl -s -X POST -H "Content-Type: application/json" \
-          -d "{\"leader_api_addr\":\"http://${sts_name}-0.${sts_name}-internal:8200\"}" \
-          "${peer_addr}/v1/sys/storage/raft/join" > /dev/null || true
-        log "Raft join request sent to ${sts_name}-${i}."
-      fi
-    done
-
-    token_check="$(vault_get /v1/auth/token/lookup-self)"
-    printf '%s' "$token_check" | grep -q '"id"' || fail "Root token validation failed"
-
-    log "Phase 4 - Configuring secrets engines and Kubernetes auth"
-    mounts="$(vault_get /v1/sys/mounts)"
-    if ! printf '%s' "$mounts" | grep -q '"secret/"'; then
-      vault_post /v1/sys/mounts/secret '{"type":"kv","options":{"version":"2"}}' >/dev/null
-      log "Enabled KV v2 mount secret/."
-    else
-      log "KV v2 mount secret/ already present."
-    fi
-
-    if ! printf '%s' "$mounts" | grep -q '"node-net/"'; then
-      vault_post /v1/sys/mounts/node-net '{"type":"kv","options":{"version":"2"}}' >/dev/null
-      log "Enabled KV v2 mount node-net/."
-    else
-      log "KV v2 mount node-net/ already present."
-    fi
-
+      log "Phase 4 - Configuring secrets engines and Kubernetes auth"
+      configure_secrets_engines
 {{- if not .Values.valkey.external }}
-    # Keep the internal Valkey passwords Base64-safe: 32 characters from the
-    # standard Base64 alphabet, with no other shell- or Redis-sensitive bytes.
-    vault_post /v1/sys/policies/password/valkey-password \
-      '{"policy":"length = 32\nrule \"charset\" {\n  charset = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\"\n}\n"}' \
-      >/dev/null
-
-    valkey_secret="$(vault_get /v1/secret/data/apps/valkey)"
-    valkey_username="$(json_val valkey_username "$valkey_secret")"
-    valkey_password="$(json_val valkey_password "$valkey_secret")"
-    sentinel_username="$(json_val sentinel_username "$valkey_secret")"
-    sentinel_password="$(json_val sentinel_password "$valkey_secret")"
-
-    if [ -n "$valkey_username" ] && [ -n "$valkey_password" ] && \
-       [ -n "$sentinel_username" ] && [ -n "$sentinel_password" ]; then
-      log "Internal Valkey and Sentinel credentials already exist in secret/apps/valkey."
-    else
-      [ -n "$valkey_username" ] || valkey_username="default"
-      [ -n "$sentinel_username" ] || sentinel_username="default"
-
-      if [ -z "$valkey_password" ]; then
-        password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
-        valkey_password="$(json_val password "$password_response")"
-        [ -n "$valkey_password" ] || fail "Vault did not generate a Valkey password"
-      fi
-      if [ -z "$sentinel_password" ]; then
-        password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
-        sentinel_password="$(json_val password "$password_response")"
-        [ -n "$sentinel_password" ] || fail "Vault did not generate a Sentinel password"
-      fi
-
-      vault_post /v1/secret/data/apps/valkey \
-        "{\"data\":{\"valkey_username\":\"${valkey_username}\",\"valkey_password\":\"${valkey_password}\",\"sentinel_username\":\"${sentinel_username}\",\"sentinel_password\":\"${sentinel_password}\"}}" \
-        >/dev/null
-      log "Created internal Valkey and Sentinel credentials in secret/apps/valkey."
-    fi
+      configure_valkey_credentials
 {{- end }}
+      configure_kubernetes_auth
 
-    auth_methods="$(vault_get /v1/sys/auth)"
-    if ! printf '%s' "$auth_methods" | grep -q '"kubernetes/"'; then
-      vault_post /v1/sys/auth/kubernetes '{"type":"kubernetes"}' >/dev/null
-      log "Enabled Kubernetes auth."
-    else
-      log "Kubernetes auth already enabled."
-    fi
-
-    ca_cert="$(awk '{printf "%s\\n", $0}' /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)"
-    vault_post /v1/auth/kubernetes/config "{\"kubernetes_host\":\"https://kubernetes.default.svc\",\"kubernetes_ca_cert\":\"${ca_cert}\",\"disable_iss_validation\":true}" >/dev/null
-
-    certificate_manager_policy="$(cat <<'POLICY'
-    path "secret/data/certificate-manager/*" {
-      capabilities = ["create", "update", "read", "list"]
+      log "Vault setup complete."
+      park_idle
     }
 
-    path "secret/metadata/certificate-manager/*" {
-      capabilities = ["list", "read"]
-    }
-
-    path "secret/delete/certificate-manager/*" {
-      capabilities = ["update"]
-    }
-
-    path "secret/undelete/certificate-manager/*" {
-      capabilities = ["update"]
-    }
-
-    path "node-net/data/*" {
-      capabilities = ["create", "update", "read", "list", "delete"]
-    }
-
-    path "node-net/metadata/*" {
-      capabilities = ["list", "read", "delete"]
-    }
-
-    path "node-net/delete/*" {
-      capabilities = ["update"]
-    }
-
-    path "node-net/undelete/*" {
-      capabilities = ["update"]
-    }
-
-    path "sys/mounts" {
-      capabilities = ["read"]
-    }
-
-    path "sys/mounts/*" {
-      capabilities = ["read"]
-    }
-    POLICY
-    )"
-    write_policy certificate-manager "$certificate_manager_policy"
-
-    certificate_manager_role="$(cat <<ROLE
-    {
-      "bound_service_account_names": ["${CERT_MANAGER_SA}"],
-      "bound_service_account_namespaces": ["${NAMESPACE}"],
-      "policies": ["certificate-manager"],
-      "ttl": "1h"
-    }
-    ROLE
-    )"
-    vault_post /v1/auth/kubernetes/role/certificate-manager "$certificate_manager_role" >/dev/null
-
-{{- if .Values.vault.staticSecrets.enabled }}
-    static_secrets_policy="$(cat <<'POLICY'
-    path "secret/data/apps/client-server" {
-      capabilities = ["read"]
-    }
-
-    # Generated federator certificate bundle maintained by certificate-manager.
-    # node-net is a KV v2 mount, not a folder under the secret mount.
-    path "node-net/data/client" {
-      capabilities = ["read"]
-    }
-    
-    path "secret/data/apps/valkey" {
-      capabilities = ["read"]
-    }
-
-    path "secret/metadata/apps/client-server" {
-      capabilities = ["read", "list"]
-    }
-
-    path "node-net/metadata/client" {
-      capabilities = ["read", "list"]
-    }
-
-    path "secret/data/apps/initial-bootstrap" {
-      capabilities = ["read"]
-    }
-
-    POLICY
-    )"
-    write_policy federator-suite-client-server-vault-reader "$static_secrets_policy"
-    client_server_reader_role="$(cat <<ROLE
-    {
-      "bound_service_account_names": ["federator-suite-vault-internal"],
-      "bound_service_account_namespaces": ["${NAMESPACE}"],
-      "policies": ["federator-suite-client-server-vault-reader"],
-      "ttl": "1h"
-    }
-    ROLE
-    )"
-    vault_post /v1/auth/kubernetes/role/federator-suite-client-server-vault-reader "$client_server_reader_role" >/dev/null
-{{- end }}
-
-    log "Vault setup complete."
-    park_idle
+    main
 {{- end }}
