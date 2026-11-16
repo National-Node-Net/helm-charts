@@ -48,17 +48,6 @@ certificateManager:
       cpu: 500m
       memory: 512Mi
 
-  # ── Persistence (shared PVC for cert storage) ──────────────────────────────
-  persistence:
-    accessMode: ReadWriteMany
-    size: 1Gi
-    storageClass: ""  # Uses default StorageClass; set to "efs-sc" for AWS EFS
-
-  # ── Bootstrap Certificate ──────────────────────────────────────────────────
-  bootstrapCert:
-    enabled: false
-    secretName: ""  # Name of pre-created Secret containing bootstrap PKCS12
-
   # ── Application Configuration ──────────────────────────────────────────────
   config:
     applicationName: certificate-manager

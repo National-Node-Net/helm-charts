@@ -187,10 +187,5 @@ certificateManager:
   image:
     repository: "iafederatoracr.azurecr.io/federator-certificate-manager"
     tag: "1.0.0"
-  persistence:
-    # AKS only has Azure Disk storage classes (ReadWriteOnce)
-    # ReadWriteMany requires Azure Files. Use RWO — scheduler colocates all pods
-    # that share this PVC (certificate-manager, federator-client, federator-server) on the same node.
-    accessMode: ReadWriteOnce
 
 # HEG-specific secrets (defined in secrets/heg-secrets.yaml)

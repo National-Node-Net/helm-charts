@@ -117,9 +117,6 @@ certificateManager:
     repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-certificate-manager
     tag: "0.90.0-20261023084513"
     pullPolicy: IfNotPresent
-  persistence:
-    # KIND local-path provisioner only supports ReadWriteOnce (not ReadWriteMany)
-    accessMode: ReadWriteOnce
   vaultToken:
     # Init container blocks until vault-setup sidecar creates token secret
     useSecret: true

@@ -342,10 +342,5 @@ certificateManager:
     cert:
       subjectOrg: "hmrc"
       subjectCountry: "GB"
-  persistence:
-    # GKE only has GCE PD storage classes (standard-rwo, premium-rwo) which are RWO only.
-    # ReadWriteMany requires Filestore/NFS. Use RWO — scheduler colocates all 3 pods that share
-    # this PVC (certificate-manager, federator-client, federator-server) on the same node.
-    accessMode: ReadWriteOnce
 
 # HMRC-specific secrets (defined in secrets/hmrc-secrets.yaml)

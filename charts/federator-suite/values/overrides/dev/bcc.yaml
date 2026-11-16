@@ -227,8 +227,6 @@ vault:
 
 certificateManager:
   enabled: false
-  persistence:
-    accessMode: ReadWriteOnce
   image:
     repository: "537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/federator-certificate-manager"
     tag: "1.0.0"

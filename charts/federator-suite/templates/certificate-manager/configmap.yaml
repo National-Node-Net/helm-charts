@@ -18,7 +18,7 @@ data:
   # Filesystem keystore key alias.
   CERT_DEST_KEYSTORE_ALIAS: {{ .Values.certificateManager.config.cert.destination.file.keystoreAlias | default "federator" | quote }}
   # Vault KV v2 destination for generated certificate stores.
-  CERT_DEST_VAULT_PATH: {{ .Values.certificateManager.config.cert.destination.vault.path | default "node-net/client" | quote }}
+  CERT_DEST_VAULT_PATH: {{ .Values.certificateManager.config.cert.destination.vault.path | default "node-net/output" | quote }}
   # Vault keystore attribute name.
   CERT_DEST_VAULT_KEYSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.vault.keystoreFile | default "keystore.p12" | quote }}
   # Vault truststore attribute name.

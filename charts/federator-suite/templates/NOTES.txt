@@ -155,7 +155,7 @@ Certificate Manager:
   Image:    {{ .Values.certificateManager.image.repository }}:{{ .Values.certificateManager.image.tag }}
   Schedule: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" }}
   Output:   {{ .Values.certificateManager.config.cert.outputDir | default "/certs" }}
-  PVC:      {{ include "federator-suite.certStorage.claimName" . }}
+  Storage:  pod-local ephemeral volume (/certs)
 
 --------------------------------------------------------------------------------
 NEXT STEPS

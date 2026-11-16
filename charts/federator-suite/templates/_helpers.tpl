@@ -301,11 +301,3 @@ Certificate manager service account name
 {{- printf "%s-certificate-manager" .Release.Name }}
 {{- end }}
 {{- end }}
-
-{{/*
-Shared cert storage PVC claim name
-Used by certificate-manager (read-write) and server/client deployments (read-only)
-*/}}
-{{- define "federator-suite.certStorage.claimName" -}}
-{{- printf "%s-cert-storage" .Release.Name }}
-{{- end }}

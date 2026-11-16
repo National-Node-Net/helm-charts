@@ -62,7 +62,7 @@ federator-suite/
 │   ├── configmaps/             # Application config
 │   ├── secrets/                # Kubernetes Secret templates
 │   ├── vault/                  # Vault sidecar setup ConfigMap + supporting RBAC/SA
-│   ├── certificate-manager/    # Certificate manager deployment, PVC, secrets
+│   ├── certificate-manager/    # Certificate manager deployment, ephemeral storage, secrets
 │   ├── opa/                    # OPA (Open Policy Agent) PDP — Deployment, Service, ConfigMap, SA
 │   ├── istio/                  # Optional Istio resources
 │   ├── kafka-ui/               # Kafka UI resources
