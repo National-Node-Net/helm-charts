@@ -117,9 +117,6 @@ spec:
         - name: server-properties-volume
           mountPath: /config-templates/server.properties # if a config appears here, the entrypoint in the server will transform and copy to /config
           subPath: server.properties
-          readOnly: true     
-        - name: idp-mtls-certificates
-          mountPath: /secrets/idp-mtls-certificates
           readOnly: true
         - name: runtime-certificates
           mountPath: /secrets/federator-runtime-certificates
@@ -132,9 +129,6 @@ spec:
       - name: server-properties-volume
         configMap:
           name: {{ include "server.name" . }}-properties
-      - name: idp-mtls-certificates
-        secret:
-          secretName: idp-mtls-certificates
       - name: runtime-certificates
         secret:
           secretName: {{ .Values.federatorServer.runtimeCertificatesSecret }}
