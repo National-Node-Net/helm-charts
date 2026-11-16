@@ -1,4 +1,4 @@
-{{- if and .Values.vault.staticSecrets.enabled .Values.certificateManager.enabled }}
+{{- if and .Values.vault.staticSecrets.enabled }}
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
