@@ -9,11 +9,11 @@ metadata:
     app.kubernetes.io/component: vault
 data:
   certificate-manager-role.json: |
+    # note that audience is empty there is no where to set it in the certificat-manager app
     {
       "bound_service_account_names": [{{ include "certificateManager.serviceAccountName" . | toJson }}],
       "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
       "policies": ["certificate-manager"],
-      "audience": "vault",
       "ttl": "1h"
     }
   
