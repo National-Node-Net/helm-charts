@@ -26,6 +26,5 @@ spec:
   kubernetes:
     role: certificate-manager
     serviceAccount: {{ include "certificateManager.serviceAccountName" . }}
-    audiences:
-      - vault
+    # The certificate-manager application supplies the Kubernetes JWT (audience) itself.
 {{- end }}
