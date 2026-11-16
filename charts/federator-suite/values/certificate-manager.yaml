@@ -61,7 +61,7 @@ certificateManager:
       secretPath: "node-net/client"
       # authentication: TOKEN for Shamir/local (reads VAULT_TOKEN), KUBERNETES for cloud k8s auth
       authentication: KUBERNETES
-      authRole: certificate-manager
+      authRole: certificate-manager-role
       pkiMount: pki-client
 
     # Management Node connectivity

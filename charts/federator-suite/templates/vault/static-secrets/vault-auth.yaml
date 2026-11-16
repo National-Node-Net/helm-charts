@@ -9,7 +9,7 @@ spec:
   method: kubernetes
   mount: kubernetes
   kubernetes:
-    role: federator-suite-client-server-vault-reader
+    role: client-server-vault-reader-role
     serviceAccount: federator-suite-vault-internal
     audiences:
       - vault
@@ -24,7 +24,7 @@ spec:
   method: kubernetes
   mount: kubernetes
   kubernetes:
-    role: certificate-manager
+    role: certificate-manager-role
     serviceAccount: {{ include "certificateManager.serviceAccountName" . }}
     # The certificate-manager application supplies the Kubernetes JWT (audience) itself.
 {{- end }}

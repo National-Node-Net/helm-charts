@@ -293,11 +293,11 @@ data:
       ca_cert="$(sed 's/$/\\n/' /var/run/secrets/kubernetes.io/serviceaccount/ca.crt | tr -d '\n')"
       vault_post /v1/auth/kubernetes/config "{\"kubernetes_host\":\"https://kubernetes.default.svc\",\"kubernetes_ca_cert\":\"${ca_cert}\",\"disable_iss_validation\":true}" >/dev/null
 
-      vault_policy_write acl certificate-manager /scripts/certificate-manager-policy.hcl
-      vault_role_write certificate-manager /scripts/certificate-manager-role.json
+      vault_policy_write acl certificate-manager-policy /scripts/certificate-manager-policy.hcl
+      vault_role_write certificate-manager-role /scripts/certificate-manager-role.json
 {{- if .Values.vault.staticSecrets.enabled }}
-      vault_policy_write acl federator-suite-client-server-vault-reader /scripts/client-server-vault-reader-policy.hcl
-      vault_role_write federator-suite-client-server-vault-reader /scripts/client-server-vault-reader-role.json
+      vault_policy_write acl client-server-vault-reader-policy /scripts/client-server-vault-reader-policy.hcl
+      vault_role_write client-server-vault-reader-role /scripts/client-server-vault-reader-role.json
 {{- end }}
     }
 
