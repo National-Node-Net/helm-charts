@@ -12,7 +12,7 @@ data:
     {
       "bound_service_account_names": [{{ include "certificateManager.serviceAccountName" . | toJson }}],
       "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
-      "policies": ["certificate-manager-policy"],
+      "token_policies": ["certificate-manager-policy"],
       "ttl": "1h"
     }
   
@@ -70,7 +70,7 @@ data:
     {
       "bound_service_account_names": ["federator-suite-vault-internal"],
       "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
-      "policies": ["client-server-vault-reader-policy"],
+      "token_policies": ["client-server-vault-reader-policy"],
       "ttl": "1h"
     }
 
@@ -109,8 +109,8 @@ data:
       capabilities = ["read"]
     }
 
-  # Keep generated passwords to the standard Base64 alphabet.
-  valkey-password-rule-policy.hcl: |
+  # Keep generated passwords to the standard Base64 alphabet (keep it *.-passwordrule)
+  valkey-password-policy-passwordrule.hcl: |
     length = 32
     rule "charset" {
       charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"

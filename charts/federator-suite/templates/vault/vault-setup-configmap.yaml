@@ -248,7 +248,7 @@ data:
     configure_valkey_credentials() {
       local valkey_secret valkey_username valkey_password
       local sentinel_username sentinel_password password_response
-      vault_policy_write password valkey-password /scripts/valkey-password-rule-policy.hcl
+      vault_policy_write password valkey-password-policy /scripts/valkey-password-policy-passwordrule.hcl
 
       valkey_secret="$(vault_get /v1/secret/data/apps/valkey)"
       valkey_username="$(json_val valkey_username "$valkey_secret")"
@@ -264,12 +264,12 @@ data:
         [ -n "$sentinel_username" ] || sentinel_username="default"
 
         if [ -z "$valkey_password" ]; then
-          password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
+          password_response="$(vault_get /v1/sys/policies/password/valkey-password-policy-passwordrule/generate)"
           valkey_password="$(json_val password "$password_response")"
           [ -n "$valkey_password" ] || fail "Vault did not generate a Valkey password"
         fi
         if [ -z "$sentinel_password" ]; then
-          password_response="$(vault_get /v1/sys/policies/password/valkey-password/generate)"
+          password_response="$(vault_get /v1/sys/policies/password/valkey-password-policy-passwordrule/generate)"
           sentinel_password="$(json_val password "$password_response")"
           [ -n "$sentinel_password" ] || fail "Vault did not generate a Sentinel password"
         fi
