@@ -16,11 +16,11 @@ case "${3:?start, stop, or status is required}" in
     kubectl port-forward -n "$namespace" "svc/${release_name}-federator-client" 8085:8085 >/dev/null 2>&1 &
     kubectl port-forward -n "$namespace" "svc/${release_name}-vault-ui" 8200:8200 >/dev/null 2>&1 &
     kubectl port-forward -n "$namespace" "svc/${release_name}-opa" 8181:8181 >/dev/null 2>&1 &
-    echo "✓ JobRunr:    http://localhost:8085"
-    echo "✓ Kafka UI:   http://localhost:8088"
-    echo "✓ Valkey UI:  http://localhost:5540"
-    echo "✓ Vault UI:   http://localhost:8200"
-    echo "✓ OPA:        http://localhost:8181"
+    echo "JobRunr:    http://localhost:8085"
+    echo "Kafka UI:   http://localhost:8088"
+    echo "Valkey UI:  http://localhost:5540"
+    echo "Vault UI:   http://localhost:8200"
+    echo "OPA:        http://localhost:8181"
     ;;
   stop)
     pids="$(ps aux | grep '[k]ubectl port-forward' | grep -- "-n $namespace" | awk '{print $2}' || true)"

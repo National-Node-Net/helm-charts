@@ -4,7 +4,7 @@ valkey:
   enabled: true # Disable if using external Valkey.
   external: false # Set true when using external Valkey.
   externalSettings:
-    host: "clustercfg.dev-valkey-cluster.kquwra.euw2.cache.amazonaws.com"
+    host: "example.msk.cache.amazonaws.com"
     port: 6379
     tlsEnabled: true
     ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties

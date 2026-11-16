@@ -24,28 +24,28 @@ Istio:    {{ if $istioEnabled }}Enabled{{ else }}Disabled{{ end }}
 
 Components Deployed:
 {{- if .Values.federatorServer.enabled }}
-  ✓ Federator Server
+  Federator Server
 {{- end }}
 {{- if .Values.federatorClient.enabled }}
-  ✓ Federator Client
+  Federator Client
 {{- end }}
 {{- if not .Values.kafka.external }}
-  ✓ Kafka (Strimzi, in-cluster)
+  Kafka (Strimzi, in-cluster)
 {{- else }}
   - Kafka (external; no in-cluster Kafka deployed)
 {{- end }}
-  ✓ HashiCorp Vault (HA Raft, KV v2)
+  HashiCorp Vault (HA Raft, KV v2)
 {{- if .Values.certificateManager.enabled }}
-  ✓ Certificate Manager (headless scheduler)
+  Certificate Manager (headless scheduler)
 {{- end }}
 {{- if .Values.opa.enabled }}
-  ✓ OPA (Open Policy Agent)
+  OPA (Open Policy Agent)
 {{- end }}
 {{- if .Values.kafka.ui.enabled }}
-  ✓ Kafka UI
+  Kafka UI
 {{- end }}
 {{- if .Values.valkey.ui.enabled }}
-  ✓ Valkey UI
+  Valkey UI
 {{- end }}
 
 --------------------------------------------------------------------------------

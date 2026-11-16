@@ -96,7 +96,7 @@ create_ca() {
         -days ${VALIDITY_DAYS} \
         -subj "${CA_SUBJECT}"
     
-    log "✓ CA certificate created"
+    log "CA certificate created"
 }
 
 create_server_certs() {
@@ -151,7 +151,7 @@ EOF
         -deststorepass "${SERVER_KEYSTORE_PASSWORD}" \
         -noprompt
     
-    log "✓ Server certificates created"
+    log "Server certificates created"
 }
 
 create_client_certs() {
@@ -193,7 +193,7 @@ create_client_certs() {
         -deststorepass "${CLIENT_KEYSTORE_PASSWORD}" \
         -noprompt
     
-    log "✓ Client certificates created"
+    log "Client certificates created"
 }
 
 create_truststore() {
@@ -212,7 +212,7 @@ create_truststore() {
         -storepass "${TRUSTSTORE_PASSWORD}" \
         -noprompt
     
-    log "✓ Truststore created"
+    log "Truststore created"
 }
 
 generate_base64_values() {
@@ -250,7 +250,7 @@ secrets:
             clientKeystorePassword: "${CLIENT_KEYSTORE_PASSWORD}"
 EOF
 
-        log "✓ Updated ${SECRETS_FILE} and wrote reference copy to ${output_file}"
+        log "Updated ${SECRETS_FILE} and wrote reference copy to ${output_file}"
 }
 
 display_summary() {

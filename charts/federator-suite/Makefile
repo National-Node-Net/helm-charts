@@ -95,7 +95,7 @@ else
 	@helm upgrade --install $(RELEASE_NAME) $(CHART_PATH) -n $(NAMESPACE) $(VALUES_FILES) --wait --timeout 10m
 endif
 	@$(MAKE) _verify
-	@echo "==> ✓ Deployment complete!"
+	@echo "==> Deployment complete!"
 
 .PHONY: deploy-local
 deploy-local: ENV=local
@@ -107,7 +107,7 @@ upgrade: ## Fast helm upgrade without checks (for iterative dev)
 	@echo "==> Upgrading $(RELEASE_NAME) in $(NAMESPACE) ($(ENV)/$(ORG))..."
 	@kubectl delete configmap federator-server-properties federator-client-properties -n $(NAMESPACE) 2>/dev/null || true
 	@helm upgrade $(RELEASE_NAME) $(CHART_PATH) -n $(NAMESPACE) $(VALUES_FILES)
-	@echo "==> ✓ Upgrade complete!"
+	@echo "==> Upgrade complete!"
 
 # ============================================
 # Internal Targets
@@ -118,7 +118,7 @@ setup_cluster:
 ifeq ($(ENV),local)
 	@echo "==> Cluster setup (local)..."
 	@if kind get clusters | grep -q federator-suite-kind-cluster; then \
-echo "  ✓ Kind cluster exists"; \
+echo "  Kind cluster exists"; \
 else \
 echo "  → Creating Kind cluster..."; \
 kind create cluster --name federator-suite-kind-cluster --config kind-config.yaml; \
@@ -130,7 +130,7 @@ else
 	@echo "==> Verifying cluster..."
 	@kubectl cluster-info > /dev/null
 	@kubectl get namespace $(NAMESPACE) > /dev/null 2>&1 || (echo "ERROR: Namespace $(NAMESPACE) does not exist!" && exit 1)
-	@echo "  ✓ Connected to $(ENV), namespace $(NAMESPACE) exists"
+	@echo "  Connected to $(ENV), namespace $(NAMESPACE) exists"
 endif
 
 .PHONY: build_deps
@@ -164,7 +164,7 @@ _istio-inject-if-enabled:
 	grep -B2 "kind: Gateway" | grep -q "networking.istio.io" && echo "true" || echo "false"); \
 	if [ "$$ISTIO_ENABLED" = "true" ]; then \
 	kubectl label namespace $(NAMESPACE) istio-injection=enabled --overwrite 2>/dev/null || true; \
-	echo "  ✓ Istio injection enabled"; \
+	echo "  Istio injection enabled"; \
 	fi
 
 .PHONY: _verify
@@ -198,9 +198,9 @@ else
 	@test -f values/overrides/$(ENV)/$(ORG).yaml || (echo "ERROR: values/overrides/$(ENV)/$(ORG).yaml not found" && exit 1)
 	@test -f $(SECRETS_FILE) || (echo "ERROR: $(SECRETS_FILE) not found" && exit 1)
 endif
-	@echo "  ✓ Required files present"
+	@echo "  Required files present"
 	@helm lint $(CHART_PATH) $(VALUES_FILES) 2>&1 | tail -1
-	@echo "  ✓ Validation passed"
+	@echo "  Validation passed"
 
 .PHONY: check-cluster
 check-cluster: ## Check cluster connectivity
@@ -227,19 +227,19 @@ check-secrets: ## Verify secrets file exists
 	@if [ "$(ENV)" = local ]; then \
 		test -f "$(RUNTIME_SECRETS_FILE)" || (echo "ERROR: $(RUNTIME_SECRETS_FILE) not found" && exit 1); \
 		jq -e 'type == "object"' "$(RUNTIME_SECRETS_FILE)" >/dev/null || (echo "ERROR: $(RUNTIME_SECRETS_FILE) must be a JSON object" && exit 1); \
-		echo "  ✓ Runtime secrets JSON is ready for Vault bootstrap"; \
+		echo "  Runtime secrets JSON is ready for Vault bootstrap"; \
 	else \
 		echo "==> Checking: $(SECRETS_FILE)"; \
 		test -f "$(SECRETS_FILE)" || (echo "ERROR: Secrets file not found" && exit 1); \
 		grep -q "truststoreJks:" "$(SECRETS_FILE)" || echo "  ⚠ truststoreJks not found"; \
 		grep -q "serverKeystoreJks:" "$(SECRETS_FILE)" || echo "  ⚠ serverKeystoreJks not found"; \
 		grep -q "clientKeystoreJks:" "$(SECRETS_FILE)" || echo "  ⚠ clientKeystoreJks not found"; \
-		echo "  ✓ Secrets check complete"; \
+		echo "  Secrets check complete"; \
 	fi
 
 .PHONY: pre-deploy-check
 pre-deploy-check: validate check-cluster check-secrets ## Run all pre-deployment checks
-	@echo "==> ✓ Pre-deploy checks passed"
+	@echo "==> Pre-deploy checks passed"
 
 .PHONY: test
 test: test-render lint ## Run all tests
@@ -248,7 +248,7 @@ test: test-render lint ## Run all tests
 test-render: ## Test template rendering
 	@echo "==> Rendering templates..."
 	@helm template test-$(ORG) $(CHART_PATH) $(VALUES_FILES) --namespace $(NAMESPACE) --debug 2>&1 | head -50
-	@echo "==> ✓ Render successful"
+	@echo "==> Render successful"
 
 .PHONY: lint
 lint: ## Helm lint
@@ -336,12 +336,12 @@ port-forward-status: ## Show active port forwards
 .PHONY: istio-enable
 istio-enable: ## Enable Istio injection on namespace
 	@kubectl label namespace $(NAMESPACE) istio-injection=enabled --overwrite
-	@echo "✓ Istio injection enabled. Restart pods: kubectl rollout restart deployment -n $(NAMESPACE)"
+	@echo "Istio injection enabled. Restart pods: kubectl rollout restart deployment -n $(NAMESPACE)"
 
 .PHONY: istio-disable
 istio-disable: ## Disable Istio injection on namespace
 	@kubectl label namespace $(NAMESPACE) istio-injection-
-	@echo "✓ Istio injection removed. Restart pods: kubectl rollout restart deployment -n $(NAMESPACE)"
+	@echo "Istio injection removed. Restart pods: kubectl rollout restart deployment -n $(NAMESPACE)"
 
 .PHONY: istio-status
 istio-status: ## Check Istio status
@@ -378,18 +378,18 @@ uninstall: ## Uninstall release and delete PVCs
 	@echo "==> Uninstalling $(RELEASE_NAME) from $(NAMESPACE)..."
 	@helm uninstall $(RELEASE_NAME) -n $(NAMESPACE) --wait
 	@kubectl delete pvc -l app.kubernetes.io/instance=$(RELEASE_NAME) -n $(NAMESPACE) 2>/dev/null || true
-	@echo "==> ✓ Uninstalled"
+	@echo "==> Uninstalled"
 
 .PHONY: uninstall-keep-data
 uninstall-keep-data: ## Uninstall release but keep PVCs
 	@helm uninstall $(RELEASE_NAME) -n $(NAMESPACE) --wait
-	@echo "✓ Uninstalled (PVCs preserved)"
+	@echo "Uninstalled (PVCs preserved)"
 
 .PHONY: destroy-cluster
 destroy-cluster: ## Delete Kind cluster (local only)
 ifeq ($(ENV),local)
 	@kind delete cluster --name federator-suite-kind-cluster
-	@echo "✓ Cluster destroyed"
+	@echo "Cluster destroyed"
 else
 	@echo "ERROR: destroy-cluster only works with ENV=local" && exit 1
 endif
@@ -397,7 +397,7 @@ endif
 .PHONY: clean
 clean: ## Clean generated files (Chart.lock, certs)
 	@rm -rf Chart.lock certs/
-	@echo "✓ Cleaned"
+	@echo "Cleaned"
 
 .PHONY: clean-all
 clean-all: uninstall destroy-cluster clean ## Full cleanup (uninstall + destroy cluster + clean)

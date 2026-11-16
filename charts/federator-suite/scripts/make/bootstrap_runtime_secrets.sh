@@ -54,4 +54,4 @@ printf '%s' "$secret_data" | kubectl exec -i -n "$namespace" "$vault_pod" -c vau
     vault kv put -mount=secret apps/client-server @"$secret_file" >/dev/null
   '
 
-echo "  ✓ Vault secret updated; VaultStaticSecret will refresh federator-runtime-properties."
+echo "  Vault secret updated; VaultStaticSecret will refresh federator-runtime-properties."

@@ -51,4 +51,4 @@ done
 # covers an existing operator installation whose CRDs were already present.
 kubectl rollout status deployment/strimzi-cluster-operator --namespace "$STRIMZI_NAMESPACE" --timeout="$TIMEOUT"
 
-echo "==> ✓ Strimzi Kafka Operator is ready"
+echo "==> Strimzi Kafka Operator is ready"

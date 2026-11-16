@@ -54,7 +54,7 @@ spec:
             echo "  secret not found yet, retrying in 5s..."
             sleep 5
           done
-          echo "  ✓ Secret $SECRET exists, starting cert-manager"
+          echo "  Secret $SECRET exists, starting cert-manager"
       {{- end }}
       containers:
       - name: certificate-manager
