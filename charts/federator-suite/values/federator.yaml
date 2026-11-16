@@ -75,6 +75,10 @@ federatorServer:
   config:
     serverPort: 8080
     logLevel: INFO
+    # Public IdP connection details. Passwords remain in the Vault-sourced runtime Secret.
+    idpClientId: ""
+    idpJwksUrl: ""
+    idpTokenUrl: ""
     
     kafkaConsumerGroup: server.consumer
     kafkaPollDuration: PT10S
@@ -117,10 +121,6 @@ federatorServer:
       gcp:
         bucket: ""
   
-  # Environment variables for the deployment
-  env:
-    
-
 federatorClient:
   enabled: true
   # Existing Secret providing runtime variables for client properties.
@@ -194,6 +194,10 @@ federatorClient:
   config:
     serverPort: 8081
     logLevel: INFO
+    # Public IdP connection details. Passwords remain in the Vault-sourced runtime Secret.
+    idpClientId: ""
+    idpJwksUrl: ""
+    idpTokenUrl: ""
     
     # Kafka topic configuration
     kafkaTopicPrefix: "Deprecated"  # Override per org
@@ -233,9 +237,4 @@ federatorClient:
     jobsDefaultAllowConcurrentExecution: false
     
     commonConfiguration: /common-configuration/common-configuration.properties
-  
-  # Environment variables for the deployment
-  env:
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-    CLIENT_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
   

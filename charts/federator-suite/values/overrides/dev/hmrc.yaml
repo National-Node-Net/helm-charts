@@ -187,11 +187,6 @@ federatorClient:
       gcp:
         bucket: "development-486319-federator-orgid4-hmrc"
   
-  # Override client-specific env for HMRC
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org1-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-
 # Enable UIs for dev environment
 kafkaUi:
   enabled: true
