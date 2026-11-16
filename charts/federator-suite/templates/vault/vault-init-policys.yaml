@@ -76,6 +76,10 @@ data:
       capabilities = ["read"]
     }
 
+    path "node-net/data/client/*" {
+      capabilities = ["read"]
+    }
+
     path "secret/data/apps/valkey" {
       capabilities = ["read"]
     }
@@ -85,6 +89,10 @@ data:
     }
 
     path "node-net/metadata/client" {
+      capabilities = ["read", "list"]
+    }
+
+    path "node-net/metadata/client/*" {
       capabilities = ["read", "list"]
     }
 

@@ -18,7 +18,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/certificate-manager/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps/certificate-manager-config.yaml") . | sha256sum }}
         {{- include "federator-suite.istio.inject" . | nindent 8 }}
         {{- with .Values.certificateManager.podAnnotations }}
         {{- toYaml . | nindent 8 }}
@@ -67,12 +67,12 @@ spec:
         - name: MTLS_KEYSTORE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: certificate-manager-secrets
+              name: certificate-manager-keystore-password
               key: keystore_password
         - name: MTLS_TRUSTSTORE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: certificate-manager-secrets
+              name: certificate-manager-truststore-password
               key: truststore_password
         - name: MTLS_KEYSTORE_TYPE
           value: PKCS12
@@ -110,7 +110,6 @@ spec:
         volumeMounts:
         - name: cert-storage
           mountPath: /certs
-
         securityContext:
           {{- toYaml .Values.certificateManager.securityContext | nindent 10 }}
       volumes:
