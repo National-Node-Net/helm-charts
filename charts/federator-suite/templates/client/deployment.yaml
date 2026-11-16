@@ -123,9 +123,9 @@ spec:
           mountPath: /config-templates/client.properties # if a config appears here, the entrypoint in the client will transform and copy to /config
           subPath: client.properties
           readOnly: true    
-        - name: idp-mtls-certificates
-          mountPath: /secrets/idp-mtls-certificates
-          readOnly: true
+        # - name: idp-mtls-certificates
+        #   mountPath: /secrets/idp-mtls-certificates
+        #   readOnly: true
         - name: runtime-certificates
           mountPath: /secrets/federator-runtime-certificates
           readOnly: true
@@ -137,9 +137,6 @@ spec:
       - name: client-properties-volume
         configMap:
           name: {{ include "client.name" . }}-properties     
-      - name: idp-mtls-certificates
-        secret:
-          secretName: idp-mtls-certificates
       - name: runtime-certificates
         secret:
           secretName: {{ .Values.federatorClient.runtimeCertificatesSecret }}

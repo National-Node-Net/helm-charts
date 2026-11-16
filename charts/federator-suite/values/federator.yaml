@@ -119,10 +119,6 @@ federatorServer:
   
   # Environment variables for the deployment
   env:
-    IDP_TRUSTSTORE_PATH: /secrets/idp-mtls-certificates/keycloak.truststore.jks
-    IDP_KEYSTORE_PATH: /secrets/idp-mtls-certificates/ndtp-keystore.jks
-    SERVER_P12_FILE_PATH: /secrets/federation-server-p12/dev-ndtp.p12
-    SERVER_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
     
 
 federatorClient:
@@ -236,14 +232,10 @@ federatorClient:
     jobsDashboardEnabled: true
     jobsDefaultAllowConcurrentExecution: false
     
-    # Connection configuration file location
-    connectionsConfiguration: /client-connections/connection-configuration.json
     commonConfiguration: /common-configuration/common-configuration.properties
   
   # Environment variables for the deployment
   env:
-    IDP_KEYSTORE_PATH: /secrets/idp-mtls-certificates/idp-client-keystore.jks
-    IDP_TRUSTSTORE_PATH: /secrets/idp-mtls-certificates/keycloak.truststore.jks
     CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
     CLIENT_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
   
