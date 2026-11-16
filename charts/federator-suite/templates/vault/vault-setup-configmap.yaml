@@ -66,12 +66,14 @@ data:
     vault_policy_write() {
       local type="$1" name="$2" file="$3" policy
       [ -r "$file" ] || fail "Policy file not readable: ${file}"
+      log "Updating policy ${name}."
       policy="$(base64 < "$file" | tr -d '\n')"
       vault_post "/v1/sys/policies/${type}/${name}" "{\"policy\":\"${policy}\"}" >/dev/null
     }
 
     vault_role_write() {
       local name="$1" file="$2" role
+      log "Updating role ${name}."
       role="$(cat "$file")"
       vault_post "/v1/auth/kubernetes/role/${name}" "$role" >/dev/null
     }

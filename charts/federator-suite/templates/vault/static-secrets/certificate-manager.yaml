@@ -6,7 +6,7 @@ metadata:
   name: certificate-manager-keystore-password
   namespace: {{ .Release.Namespace }}
 spec:
-  vaultAuthRef: federator-suite-vault-internal
+  vaultAuthRef: certificate-manager-vault-auth
   mount: node-net
   path: client/keystore-password
   type: kv-v2
@@ -29,7 +29,7 @@ metadata:
   name: certificate-manager-truststore-password
   namespace: {{ .Release.Namespace }}
 spec:
-  vaultAuthRef: federator-suite-vault-internal
+  vaultAuthRef: certificate-manager-vault-auth
   mount: node-net
   path: client/truststore-password
   type: kv-v2

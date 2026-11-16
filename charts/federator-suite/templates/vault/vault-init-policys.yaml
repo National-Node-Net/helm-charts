@@ -13,6 +13,7 @@ data:
       "bound_service_account_names": [{{ include "certificateManager.serviceAccountName" . | toJson }}],
       "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
       "policies": ["certificate-manager"],
+      "audience": "vault",
       "ttl": "1h"
     }
   
@@ -37,7 +38,16 @@ data:
       capabilities = ["create", "update", "read", "list", "delete"]
     }
 
+    # The bootstrap passwords are stored as child secrets under node-net/client.
+    path "node-net/data/client/*" {
+      capabilities = ["create", "update", "read", "list", "delete"]
+    }
+
     path "node-net/metadata/*" {
+      capabilities = ["list", "read", "delete"]
+    }
+
+    path "node-net/metadata/client/*" {
       capabilities = ["list", "read", "delete"]
     }
 

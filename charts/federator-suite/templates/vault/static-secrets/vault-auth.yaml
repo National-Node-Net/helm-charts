@@ -13,4 +13,19 @@ spec:
     serviceAccount: federator-suite-vault-internal
     audiences:
       - vault
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: certificate-manager-vault-auth
+  namespace: {{ .Release.Namespace }}
+spec:
+  vaultConnectionRef: federator-suite-vault-internal
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: certificate-manager
+    serviceAccount: {{ include "certificateManager.serviceAccountName" . }}
+    audiences:
+      - vault
 {{- end }}
