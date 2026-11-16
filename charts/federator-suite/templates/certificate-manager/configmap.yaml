@@ -47,6 +47,10 @@ data:
   MANAGEMENT_NODE_BASE_URL: {{ .Values.certificateManager.config.managementNode.baseUrl | default .Values.global.managementNode.baseUrl | quote }}
   # Management Node request timeout.
   MANAGEMENT_NODE_REQUEST_TIMEOUT: {{ .Values.certificateManager.config.managementNode.requestTimeout | default "60" | quote }}
+  # Bootstrap mTLS keystore mounted into the certificate-manager pod.
+  MTLS_KEYSTORE_PATH: "/certs/keystore.p12"
+  # Bootstrap mTLS truststore mounted into the certificate-manager pod.
+  MTLS_TRUSTSTORE_PATH: "/certs/truststore.p12"
   {{- if .Values.certificateManager.config.oauth2.enabled }}
   # Enable Management Node OAuth.
   OAUTH2_ENABLED: "true"
