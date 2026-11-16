@@ -18,6 +18,7 @@ data:
     idp.client.id={{ .Values.federatorClient.config.idpClientId }}
     idp.jwks.url={{ .Values.federatorClient.config.idpJwksUrl }}
     idp.token.url={{ .Values.federatorClient.config.idpTokenUrl }}
+    
     # Certificate-manager-issued identity for both Keycloak and Management Node mTLS.
     idp.keystore.path=/secrets/federator-runtime-certificates/keystore.p12
     idp.truststore.path=/secrets/federator-runtime-certificates/truststore.p12

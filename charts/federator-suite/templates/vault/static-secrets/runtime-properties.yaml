@@ -26,10 +26,10 @@ spec:
       templates:
         IDP_MTLS_ENABLED:
           text: {{ "{{ get .Secrets \"idp_mtlsEnabled\" }}" | quote }}
-        IDP_KEYSTORE_PASSWORD:
-          text: {{ "{{ get .Secrets \"idp_keystorePassword\" }}" | quote }}
-        IDP_TRUSTSTORE_PASSWORD:
-          text: {{ "{{ get .Secrets \"idp_truststorePassword\" }}" | quote }}
+        # IDP_KEYSTORE_PASSWORD:
+        #   text: {{ "{{ get .Secrets \"idp_keystorePassword\" }}" | quote }}
+        # IDP_TRUSTSTORE_PASSWORD:
+        #   text: {{ "{{ get .Secrets \"idp_truststorePassword\" }}" | quote }}
 {{- if .Values.kafka.external }}
         KAFKA_SASL_JAAS_CONFIG:
           text: {{ "{{ get .Secrets \"kafkaAuth_jaasConfig\" }}" | quote }}
