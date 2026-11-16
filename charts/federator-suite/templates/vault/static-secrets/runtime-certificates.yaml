@@ -7,7 +7,7 @@ metadata:
 spec:
   vaultAuthRef: certificate-manager-vault-auth
   mount: node-net
-  path: client
+  path: output
   type: kv-v2
   refreshAfter: 30s
   # Restart the federator workloads when certificate-manager renews the bundle.

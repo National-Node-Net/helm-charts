@@ -102,14 +102,14 @@ certificateManager:
           truststoreFile: truststore.p12
           keystoreAlias: federator
         vault:
-          path: node-net/client
+          path: node-net/output
           keystoreFile: keystore.p12
           truststoreFile: truststore.p12
           keystoreAlias: federator
 
     mtls:
-      keystorePath: /home/developer/Downloads/managementNode/docker/mtls-keystore.p12
-      truststorePath: /home/developer/Downloads/managementNode/docker/mtls-truststore.p12
+      keystorePath: /certs/keystore.p12
+      truststorePath: /certs/truststore.p12
       keystoreType: "PKCS12"
 
     resilience:
