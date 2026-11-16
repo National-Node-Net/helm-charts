@@ -13,6 +13,8 @@ data:
     #!/bin/sh
     set -e
 
+    echo "VERSION 0.0.1"
+
     VAULT_ADDR="http://localhost:8200"
     CLOUD_PROVIDER="${CLOUD_PROVIDER:-{{- if .Values.vault.devMode -}}local{{- else -}}{{ include "federator-suite.cloudProvider" . }}{{- end -}}}"
     AWS_REGION="${AWS_REGION:-{{ .Values.vault.seal.aws.region | default "eu-west-2" }}}"
