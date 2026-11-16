@@ -12,7 +12,7 @@ data:
     {
       "bound_service_account_names": [{{ include "certificateManager.serviceAccountName" . | toJson }}],
       "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
-      "token_policies": ["certificate-manager-policy"],
+      "policies": ["certificate-manager-policy"],
       "ttl": "1h"
     }
   
@@ -70,7 +70,7 @@ data:
     {
       "bound_service_account_names": ["federator-suite-vault-internal"],
       "bound_service_account_namespaces": [{{ .Release.Namespace | toJson }}],
-      "token_policies": ["client-server-vault-reader-policy"],
+      "policies": ["client-server-vault-reader-policy"],
       "ttl": "1h"
     }
 
