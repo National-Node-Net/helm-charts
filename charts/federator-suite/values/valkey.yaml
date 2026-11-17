@@ -9,8 +9,8 @@ valkey:
     tlsEnabled: true
     externalSecret:
       name: xxxx
-      passwordField: "VALKEY_USERNAME"
-      passwordField: "VALKEY_PASSWORD"
+      passwordField: "myUsername" # maps to VALKEY_USERNAME
+      usernameField: "myPassword" # maps to VALKEY_PASSWORD
       
         ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties
   valkey:

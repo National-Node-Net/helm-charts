@@ -19,13 +19,12 @@ data:
 {{- if and (not .Values.vault.devMode) (eq (include "federator-suite.cloudProvider" .) "gcp") }}
   GCP_PROJECT: {{ .Values.vault.seal.gcp.project | default "" | quote }}
 {{- end }}
-  HOSTNAME: "vault-0"
   LOG_LEVEL: "INFO"
   NAMESPACE: {{ .Release.Namespace | quote }}
   SECRETS_MANAGER_SECRET_NAME: {{ .Values.vault.secretsManager.secretName | quote }}
   VAULT_ADDR: "http://localhost:8200"
   VAULT_AUTO_UNSEAL: "{{ if .Values.vault.devMode }}false{{ else }}true{{ end }}"
-  VAULT_CONFIGS_PATH: "/scripts"
+  VAULT_CONFIGS_PATH: "/policys"
   VAULT_KEY_SHARES: {{ .Values.vault.setup.keyShares | default 5 | quote }}
   VAULT_KEY_THRESHOLD: {{ .Values.vault.setup.keyThreshold | default 3 | quote }}
   VAULT_REPLICAS: {{ .Values.vault.vault.server.ha.replicas | default (.Values.vault.ha.replicas | default 1) | quote }}

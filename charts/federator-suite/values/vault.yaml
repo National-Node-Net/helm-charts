@@ -123,19 +123,20 @@ vault:
         enabled: true
         size: 5Gi
       extraContainers:
+        # The problem is that all three settings belong to one extraContainers list item.
+        # Helm cannot override only its image; replacing the list requires repeating the complete container definition.
         - name: vault-setup
           image: "ghcr.io/n3/n3-vault-init:1.0.1-001" # override in dev 
           imagePullPolicy: IfNotPresent
-          command: ["python", "/app/main.py"]
           envFrom:
            - configMapRef:
                 name: vault-init-config
           volumeMounts:
-            - name: vault-setup-script
-              mountPath: /scripts
+            - name: vault-policys
+              mountPath: /policys
               readOnly: true
       volumes:
-        - name: vault-setup-script
+        - name: vault-policys
           projected:
             defaultMode: 0555
             sources:
@@ -162,11 +163,6 @@ vault:
   # ── Sidecar Setup Configuration ─────────────────────────────────────────────
   setup:
     enabled: true
-    cloudProvider: aws  # aws | azure | gcp | local
-    image:
-      repository: amazon/aws-cli
-      tag: "2.22.35"
-      pullPolicy: IfNotPresent
     keyShares: 5
     keyThreshold: 3
 
