@@ -57,23 +57,42 @@ spec:
         - name: RUNTIME_KEYSTORE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.federatorServer.runtimeCertificatesSecret }}
+              name: federator-runtime-certificates
               key: keystore.password
         - name: RUNTIME_TRUSTSTORE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.federatorServer.runtimeCertificatesSecret }}
+              name: federator-runtime-certificates
               key: truststore.password
-        {{- if not .Values.kafka.external }}
-        # if we are using the bundled  strimzi Kafka, we need to set the KAFKA_SASL_JAAS_CONFIG environment variable from the kafka-user secret that strimzi creates
+
+        # use the configured secret for external or bundled kafka.
         - name: KAFKA_SASL_JAAS_CONFIG
           valueFrom:
             secretKeyRef:
+            {{- if .Values.kafka.external }}
+              name: {{ .Values.kafka.externalSettings.externalSecret.name }}
+              key: {{ .Values.kafka.externalSettings.externalSecret.saslJaasConfig }}
+            {{- else }}
+              # use the secret created by strimzi for bundled kafka.
+              # if we are using the bundled  strimzi Kafka, we need to set the KAFKA_SASL_JAAS_CONFIG environment 
+              # from the kafka-user secret that strimzi creates    
               name: kafka-user
               key: sasl.jaas.config
-        {{- end }}
+            {{- end }}
 
-        {{- if not .Values.valkey.external }}
+        {{- if .Values.valkey.external }}
+        # use the user-provided external valkey secret.
+        - name: VALKEY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.valkey.externalSettings.externalSecret.name }}
+              key: {{ .Values.valkey.externalSettings.externalSecret.passwordField }}
+        - name: VALKEY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.valkey.externalSettings.externalSecret.name }}
+              key: {{ .Values.valkey.externalSettings.externalSecret.usernameField }}
+        {{- else }}
         # if we are using the bundled valkey we need to set the VALKEY_* environment variables from the valkey secret
         # this is automatically injected from the valkey secret which is created by the valkey VaultStaticSecret
         - name: VALKEY_PASSWORD
@@ -131,7 +150,7 @@ spec:
           name: {{ include "server.name" . }}-properties
       - name: runtime-certificates
         secret:
-          secretName: {{ .Values.federatorServer.runtimeCertificatesSecret }}
+          secretName: federator-runtime-certificates
       {{- with .Values.federatorServer.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

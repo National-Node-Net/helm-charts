@@ -80,13 +80,13 @@ spec:
         - name: RI_REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: federator-runtime-properties
-              key: VALKEY_PASSWORD
+              name: {{ .Values.valkey.externalSettings.externalSecret.name }}
+              key: {{ .Values.valkey.externalSettings.externalSecret.passwordField }}
         - name: RI_REDIS_USERNAME
           valueFrom:
             secretKeyRef:
-              name: federator-runtime-properties
-              key: VALKEY_USERNAME
+              name: {{ .Values.valkey.externalSettings.externalSecret.name }}
+              key: {{ .Values.valkey.externalSettings.externalSecret.usernameField }}
         {{- end }}
         resources:
           {{- if .Values.valkey.ui.resources }}

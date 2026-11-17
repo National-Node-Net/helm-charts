@@ -14,6 +14,9 @@ kafka:
     bootstrapServers: "aws-msk-kafka-for-example"
     securityProtocol: "SASL_SSL"
     saslMechanism: "SCRAM-SHA-512"  # todo for IAM, AWS)MSK_IAM and sasl.client.callback.handler.class=software.amazon.msk.auth.iam.IAMClientCallbackHandler
+    externalSecret:
+      name: xxxx
+      saslJaasConfig: "mySaslJaasConfig" # maps to KAFKA_SASL_JAAS_CONFIG
   ui:
     enabled: true
     service:

@@ -17,7 +17,7 @@ spec:
     - kind: Deployment
       name: {{ include "client.name" . }}
   destination:
-    name: {{ .Values.federatorClient.runtimeCertificatesSecret }}
+    name: federator-runtime-certificates
     create: true
     overwrite: true
     transformation:

@@ -8,11 +8,10 @@ valkey:
     port: 6379
     tlsEnabled: true
     externalSecret:
+      ## provide the necessary authentication details for the external Valkey/Redis
       name: xxxx
-      passwordField: "myUsername" # maps to VALKEY_USERNAME
-      usernameField: "myPassword" # maps to VALKEY_PASSWORD
-      
-        ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties
+      usernameField: "myUsername" # maps to VALKEY_USERNAME
+      passwordField: "myPassword" # maps to VALKEY_PASSWORD      
   valkey:
     # provide the necessary configuration for the local Valkey deployment
     service:
