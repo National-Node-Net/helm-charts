@@ -30,9 +30,9 @@ data:
   # Certificate scheduler expression.
   CERT_SCHEDULE_CRON: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" | quote }}
   # Fixed delay between certificate renewal checks, in milliseconds.
-  CERT_RENEWAL_RATE: {{ .Values.certificateManager.config.cert.renewalRate | default 3600000 | quote }}
+  CERT_RENEWAL_RATE: {{ .Values.certificateManager.config.cert.renewalRate | default 3600000 | int | quote }}
   # Renew when remaining validity is at or below this percentage; 100 means every check renews.
-  CERT_RENEWAL_THRESHOLD: {{ .Values.certificateManager.config.cert.renewalThreshold | default 10 | quote }}
+  CERT_RENEWAL_THRESHOLD: {{ .Values.certificateManager.config.cert.renewalThreshold | default 10 | int | quote }}
   {{- if .Values.certificateManager.config.cert.subjectCountry }}
   # Certificate subject country.
   CERT_SUBJECT_COUNTRY: {{ .Values.certificateManager.config.cert.subjectCountry | quote }}
@@ -50,7 +50,7 @@ data:
   # Management Node base URL.
   MANAGEMENT_NODE_BASE_URL: {{ .Values.certificateManager.config.managementNode.baseUrl | default .Values.global.managementNode.baseUrl | quote }}
   # Management Node request timeout.
-  MANAGEMENT_NODE_REQUEST_TIMEOUT: {{ .Values.certificateManager.config.managementNode.requestTimeout | default "60" | quote }}
+  MANAGEMENT_NODE_REQUEST_TIMEOUT: {{ .Values.certificateManager.config.managementNode.requestTimeout | default 60 | int | quote }}
   # Bootstrap mTLS keystore mounted into the certificate-manager pod.
   MTLS_KEYSTORE_PATH: "/certs/keystore.p12"
   # Bootstrap mTLS truststore mounted into the certificate-manager pod.

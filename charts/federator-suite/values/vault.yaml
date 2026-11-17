@@ -124,12 +124,12 @@ vault:
         size: 5Gi
       extraContainers:
         - name: vault-setup
-          image: "amazon/aws-cli:2.22.35"
+          image: "ghcr.io/n3/n3-vault-init:1.0.1-001" # override in dev 
           imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "/scripts/vault-setup.sh"]
-          env:
-            - name: HOME
-              value: "/tmp"
+          command: ["python", "/app/main.py"]
+          envFrom:
+           - configMapRef:
+                name: vault-init-config
           volumeMounts:
             - name: vault-setup-script
               mountPath: /scripts
@@ -139,8 +139,6 @@ vault:
           projected:
             defaultMode: 0555
             sources:
-              - configMap:
-                  name: vault-setup-script
               - configMap:
                   name: vault-init-policys
     # Vault UI — enabled for port-forward access

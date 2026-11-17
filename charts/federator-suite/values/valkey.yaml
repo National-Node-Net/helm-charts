@@ -7,7 +7,12 @@ valkey:
     host: "example.msk.cache.amazonaws.com"
     port: 6379
     tlsEnabled: true
-    ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties
+    externalSecret:
+      name: xxxx
+      passwordField: "VALKEY_USERNAME"
+      passwordField: "VALKEY_PASSWORD"
+      
+        ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties
   valkey:
     # provide the necessary configuration for the local Valkey deployment
     service:

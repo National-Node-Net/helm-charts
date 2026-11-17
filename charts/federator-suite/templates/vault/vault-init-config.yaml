@@ -1,0 +1,32 @@
+{{- if .Values.vault.setup.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-init-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "federator-suite.labels" . | nindent 4 }}
+    app.kubernetes.io/component: vault
+data:
+{{- if and (not .Values.vault.devMode) (eq (include "federator-suite.cloudProvider" .) "aws") }}
+  AWS_REGION: {{ .Values.vault.seal.aws.region | default "eu-west-2" | quote }}
+{{- end }}
+{{- if and (not .Values.vault.devMode) (eq (include "federator-suite.cloudProvider" .) "azure") }}
+  AZURE_VAULT_NAME: {{ .Values.vault.seal.azure.vaultName | default "" | quote }}
+{{- end }}
+  CERT_MANAGER_TOKEN_SECRET: {{ printf "%s-vault-token" (include "certificateManager.name" .) | quote }}
+  CLOUD_PROVIDER: {{ if .Values.vault.devMode }}"local"{{ else }}{{ include "federator-suite.cloudProvider" . | quote }}{{ end }}
+{{- if and (not .Values.vault.devMode) (eq (include "federator-suite.cloudProvider" .) "gcp") }}
+  GCP_PROJECT: {{ .Values.vault.seal.gcp.project | default "" | quote }}
+{{- end }}
+  HOSTNAME: "vault-0"
+  LOG_LEVEL: "INFO"
+  NAMESPACE: {{ .Release.Namespace | quote }}
+  SECRETS_MANAGER_SECRET_NAME: {{ .Values.vault.secretsManager.secretName | quote }}
+  VAULT_ADDR: "http://localhost:8200"
+  VAULT_AUTO_UNSEAL: "{{ if .Values.vault.devMode }}false{{ else }}true{{ end }}"
+  VAULT_CONFIGS_PATH: "/scripts"
+  VAULT_KEY_SHARES: {{ .Values.vault.setup.keyShares | default 5 | quote }}
+  VAULT_KEY_THRESHOLD: {{ .Values.vault.setup.keyThreshold | default 3 | quote }}
+  VAULT_REPLICAS: {{ .Values.vault.vault.server.ha.replicas | default (.Values.vault.ha.replicas | default 1) | quote }}
+{{- end }}
