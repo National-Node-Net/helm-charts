@@ -22,7 +22,7 @@ data:
     # Certificate-manager-issued identity for both Keycloak and Management Node mTLS.
     idp.keystore.path=/secrets/federator-runtime-certificates/keystore.p12
     idp.truststore.path=/secrets/federator-runtime-certificates/truststore.p12
-    idp.mtls.enabled=${IDP_MTLS_ENABLED}
+    idp.mtls.enabled={{ .Values.federatorServer.config.idpMtlsEnabled | default true }}
     idp.keystore.password=${RUNTIME_KEYSTORE_PASSWORD}
     idp.truststore.password=${RUNTIME_TRUSTSTORE_PASSWORD}
 

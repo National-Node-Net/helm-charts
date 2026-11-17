@@ -53,9 +53,8 @@ valkey:
 
 # Federator Server - AWS Dev
 federatorServer:
-  runtimeSecret: federator-runtime-properties
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-server # {"$imagepolicy": "flux-system:federator-suite-server-image-policy:name"}
+    repository: ghcr/ndtp/ia-federator-server # {"$imagepolicy": "flux-system:federator-suite-server-image-policy:name"}
     tag: "1.2.0-20261021141726" # {"$imagepolicy": "flux-system:federator-suite-server-image-policy:tag"}
     pullPolicy: IfNotPresent
   
@@ -91,9 +90,8 @@ federatorServer:
 
 # Federator Client - AWS Dev
 federatorClient:
-  runtimeSecret: federator-runtime-properties
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-client # {"$imagepolicy": "flux-system:federator-suite-client-image-policy:name"}
+    repository: ghcr/ndtp/ia-federator-client # {"$imagepolicy": "flux-system:federator-suite-client-image-policy:name"}
     tag: "1.2.0-20261021141726" # {"$imagepolicy": "flux-system:federator-suite-client-image-policy:tag"}
     pullPolicy: IfNotPresent
   

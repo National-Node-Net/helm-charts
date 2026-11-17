@@ -1,9 +1,6 @@
 # Federator Server & Client Configuration
 federatorServer:
   enabled: true
-  # Existing Secret used to render server.properties at pod startup.
-  runtimeSecret: federator-runtime-properties
-  
   image:
     repository: federator-server
     tag: "local"
@@ -100,6 +97,7 @@ federatorServer:
     fileStreamChunkSize: 1000
     
     # mTLS Configuration
+    idpMtlsEnabled: true
     mtlsEnabled: true
     keepAliveTime: 10
     
@@ -121,9 +119,6 @@ federatorServer:
   
 federatorClient:
   enabled: true
-  # Existing Secret providing runtime variables for client properties.
-  runtimeSecret: federator-runtime-properties
-  
   image:
     repository: federator-client
     tag: "local"
@@ -205,6 +200,7 @@ federatorClient:
     redisPrefix: "federator-client"  # Override per org
     
     # mTLS Configuration
+    idpMtlsEnabled: true
     mtlsEnabled: true
     tlsEnabled: true
     

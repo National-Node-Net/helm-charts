@@ -54,7 +54,7 @@ federatorServer:
   imagePullSecrets:
     - name: image-pull-creds
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-server
+    repository: ghcr/ndtp/ia-federator-server
     tag: "1.2.0-20261104101759"
     pullPolicy: IfNotPresent
   replicaCount: 1
@@ -81,7 +81,7 @@ federatorClient:
   imagePullSecrets:
     - name: image-pull-creds
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-client
+    repository: ghcr/ndtp/ia-federator-client
     tag: "1.2.0-20261104101759"
     pullPolicy: IfNotPresent
   replicaCount: 1

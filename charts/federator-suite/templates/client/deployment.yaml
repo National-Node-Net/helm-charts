@@ -107,13 +107,6 @@ spec:
               key: valkey_username
         {{- end }}
 
-        # the app doesnt read many env-vars directly - all the env vars we have are injected via the runtime secret
-        # and used via envsubst to update the configuration files in /config      
-        envFrom:
-        - secretRef:
-            name: {{ .Values.federatorClient.runtimeSecret | default "federator-runtime-properties" }}
-
-
         # HTTP probes use the JobRunr dashboard endpoint.
         # This confirms the client container is responsive and ready to serve traffic.
         livenessProbe:
