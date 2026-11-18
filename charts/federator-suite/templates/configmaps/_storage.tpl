@@ -89,10 +89,13 @@ client.files.storage.provider={{ $provider }}
 {{- fail (printf "Unsupported AWS authentication type: %s (expected podIdentity, irsa or secret)" $auth) }}
 {{- end }}
 
+# using authentication {{ $auth }}
 files.s3.bucket={{ required "storage.aws.bucket is required" ($aws.bucket | default "") }}
 aws.s3.region={{ required "storage.aws.region is required" ($aws.region | default "") }}
+{{- if eq $auth "secret" }}
 aws.s3.access.key.id=${AWS_ACCESS_KEY_ID}
 aws.s3.secret.access.key=${AWS_SECRET_ACCESS_KEY}
+{{- end }}
 
 {{- if eq $auth "secret" }}
 {{- $secret := dig "authentication" "existingSecret" "" $aws }}
@@ -112,6 +115,7 @@ aws.s3.secret.access.key=${AWS_SECRET_ACCESS_KEY}
 {{- fail (printf "Unsupported Azure authentication type: %s (expected workloadIdentity, connectionString or accountKey)" $auth) }}
 {{- end }}
 
+# using authentication {{ $auth }}
 files.azure.container={{ required "storage.azure.container is required" ($azure.container | default "") }}
 
 {{- if eq $auth "workloadIdentity" }}
@@ -149,6 +153,7 @@ azure.storage.endpoint={{ . }}
 {{- fail (printf "Unsupported GCP authentication type: %s (expected workloadIdentity or serviceAccount)" $auth) }}
 {{- end }}
 
+# using authentication {{ $auth }}
 files.gcp.bucket={{ required "storage.gcp.bucket is required" ($gcp.bucket | default "") }}
 
 {{- if eq $auth "serviceAccount" }}
@@ -158,6 +163,7 @@ files.gcp.bucket={{ required "storage.gcp.bucket is required" ($gcp.bucket | def
 
 {{- else if eq $provider "LOCAL" }}
 # Local Storage Configuration
+# using authentication local
 client.files.temp.dir={{ dig "local" "tempDir" "" $storage }}
 
 {{- else }}
