@@ -1,0 +1,53 @@
+# Valkey UI Configuration (RedisInsight)
+# Provides web-based interface for managing and monitoring Valkey/Redis instances
+# Note: Migrated from redis-commander to RedisInsight for better Valkey 9.x compatibility
+
+valkeyUi:
+  enabled: true
+  
+  image:
+    repository: redis/redisinsight
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  replicas: 1
+  
+  # Deployment strategy
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+  
+  # Security contexts
+  podSecurityContext: {}
+  
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    runAsNonRoot: true
+  
+  # Scheduling
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  
+  service:
+    type: NodePort
+    port: 5540
+    nodePort: 30091  # Access via http://localhost:30091 (mapped in Kind)
+  
+  # RedisInsight configuration (auto-configured via ConfigMap)
+  config:
+    # Connection details pulled from valkey.yaml
+
+

@@ -53,6 +53,7 @@ test_scenario() {
     -f values/certificate-manager.yaml \
     -f values/opa.yaml \
     -f values/federator.yaml \
+    -f values/valkey-ui.yaml \
     -f values/istio.yaml \
     $values_args \
     2>&1) || exit_code=$?
