@@ -58,4 +58,4 @@ while IFS= read -r deployment; do
   [ -n "$deployment" ] && kubectl rollout status "$deployment" --namespace "$VSO_NAMESPACE" --timeout="$TIMEOUT"
 done <<< "$deployments"
 
-echo "==> ✓ Vault Secrets Operator is ready"
+echo "==> Vault Secrets Operator is ready"

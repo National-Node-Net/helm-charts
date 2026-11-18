@@ -1,0 +1,48 @@
+{{- if and .Values.vault.staticSecrets.enabled }}
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: certificate-manager-keystore-password
+  namespace: {{ .Release.Namespace }}
+spec:
+  vaultAuthRef: certificate-manager-vault-auth
+  mount: node-net
+  path: client/keystore-password
+  type: kv-v2
+  refreshAfter: 30s
+  destination:
+    name: certificate-manager-keystore-password
+    create: true
+    overwrite: true
+    transformation:
+      excludeRaw: true
+      excludes:
+        - '.*'
+      templates:
+        keystore_password:
+          text: {{ "{{ get .Secrets \"password\" }}" | quote }}
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: certificate-manager-truststore-password
+  namespace: {{ .Release.Namespace }}
+spec:
+  vaultAuthRef: certificate-manager-vault-auth
+  mount: node-net
+  path: client/truststore-password
+  type: kv-v2
+  refreshAfter: 30s
+  destination:
+    name: certificate-manager-truststore-password
+    create: true
+    overwrite: true
+    transformation:
+      excludeRaw: true
+      excludes:
+        - '.*'
+      templates:
+        truststore_password:
+          text: {{ "{{ get .Secrets \"password\" }}" | quote }}
+{{- end }}

@@ -20,7 +20,7 @@ valkey:
     minReplicasToWrite: 1
     minReplicasMaxLag: 10
     persistence:
-      storageClass: auto-ebs-sc2
+      storageClass: "" # use default storage class
       size: 1Gi
       accessModes:
         - ReadWriteOnce

@@ -15,13 +15,21 @@ kafka:
   # MSK with SASL_SSL + SCRAM-SHA-512 authentication
   # Credentials configured in bcc-secrets.yaml
   externalConfig:
-    bootstrapServers: "b-2.devianodemsk.6fou3l.c3.kafka.eu-west-2.amazonaws.com:9096,b-1.devianodemsk.6fou3l.c3.kafka.eu-west-2.amazonaws.com:9096"
+    bootstrapServers: "yourkafkaservers"
     securityProtocol: "SASL_SSL"
     saslMechanism: "SCRAM-SHA-512"
 
 # External ElastiCache Redis/Valkey for EKS
 valkey:
   external: true
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
   externalConfig:
     host: "clustercfg.dev-valkey-cluster.kquwra.euw2.cache.amazonaws.com"
     port: 6379
@@ -34,7 +42,7 @@ valkey:
 # Federator Server - AWS Dev
 federatorServer:
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-server
+    repository: ghcr/ndtp/ia-federator-server
     tag: "28-01-26"  # from org2 kustomize overlay
     pullPolicy: IfNotPresent
   
@@ -71,7 +79,7 @@ federatorServer:
 # Federator Client - AWS Dev
 federatorClient:
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-client
+    repository: ghcr/ndtp/ia-federator-client
     tag: "28-01-26"  # from org2 kustomize overlay
     pullPolicy: IfNotPresent
   
@@ -106,25 +114,11 @@ federatorClient:
         bucket: "537124944113-federator-orgid2-bcc"
         region: "eu-west-2"
   
-  # Override client-specific env for BCC
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org1-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-
 # UIs disabled by default (kustomize didn’t expose them). Enable and choose LB/NLB later if needed.
 kafkaUi:
   enabled: true
   image:
     repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-
-valkeyUi:
-  enabled: true
-  image:
-    repository: redis/redisinsight
     tag: latest
     pullPolicy: IfNotPresent
   service:

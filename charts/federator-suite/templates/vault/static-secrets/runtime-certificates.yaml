@@ -1,23 +1,23 @@
-{{- if .Values.vault.staticSecrets.enabled }}
+{{- if and .Values.vault.staticSecrets.enabled .Values.certificateManager.enabled }}
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   name: federator-suite-runtime-certificates
   namespace: {{ .Release.Namespace }}
 spec:
-  vaultAuthRef: federator-suite-vault-internal
+  vaultAuthRef: certificate-manager-vault-auth
   mount: node-net
-  path: client
+  path: output
   type: kv-v2
   refreshAfter: 30s
-  # Restart both federators when certificate-manager renews the PKCS#12 bundle.
+  # Restart the federator workloads when certificate-manager renews the bundle.
   rolloutRestartTargets:
     - kind: Deployment
       name: {{ include "server.name" . }}
     - kind: Deployment
       name: {{ include "client.name" . }}
   destination:
-    name: {{ .Values.federatorClient.runtimeCertificatesSecret }}
+    name: federator-runtime-certificates
     create: true
     overwrite: true
     transformation:

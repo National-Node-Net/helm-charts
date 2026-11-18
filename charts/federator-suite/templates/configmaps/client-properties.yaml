@@ -15,15 +15,16 @@ metadata:
 data:
   client.properties: |-
     # Identity Provider (IDP) Configuration
-    idp.client.id=${IDP_CLIENT_ID}
-    idp.jwks.url=${IDP_JWKS_URL}
-    idp.token.url=${IDP_TOKEN_URL}
+    idp.client.id={{ .Values.federatorClient.config.idpClientId }}
+    idp.jwks.url={{ .Values.federatorClient.config.idpJwksUrl }}
+    idp.token.url={{ .Values.federatorClient.config.idpTokenUrl }}
+    
     # Certificate-manager-issued identity for both Keycloak and Management Node mTLS.
     idp.keystore.path=/secrets/federator-runtime-certificates/keystore.p12
-    idp.truststore.path=/secrets/idp-mtls-certificates/keycloak.truststore.jks
-    idp.mtls.enabled=${IDP_MTLS_ENABLED}
+    idp.truststore.path=/secrets/federator-runtime-certificates/truststore.p12
+    idp.mtls.enabled={{ .Values.federatorClient.config.idpMtlsEnabled | default true }}
     idp.keystore.password=${RUNTIME_KEYSTORE_PASSWORD}
-    idp.truststore.password=${IDP_TRUSTSTORE_PASSWORD}
+    idp.truststore.password=${RUNTIME_TRUSTSTORE_PASSWORD}
 
     # Kafka Configuration (Sender)
     kafka.sender.defaultKeySerializerClass=org.apache.kafka.common.serialization.BytesSerializer
@@ -84,22 +85,6 @@ data:
     client.truststoreFilePath=/secrets/federator-runtime-certificates/truststore.p12
     client.truststorePassword=${RUNTIME_TRUSTSTORE_PASSWORD}
 
-    # Connection Configuration
-    connections.configuration=/client-connections/connection-configuration.json
-
     # File Storage Configuration
-    client.files.storage.provider={{ .Values.federatorClient.config.storage.provider | upper }}
-    {{- if eq (.Values.federatorClient.config.storage.provider | upper) "S3" }}
-    files.s3.bucket={{ .Values.federatorClient.config.storage.s3.bucket }}
-    aws.s3.region={{ .Values.federatorClient.config.storage.s3.region }}
-    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "AZURE" }}
-    azure.storage.connection.string={{ .Values.federatorClient.config.storage.azure.connectionString }}
-    azure.storage.account.name={{ .Values.federatorClient.config.storage.azure.accountName }}
-    azure.storage.endpoint={{ .Values.federatorClient.config.storage.azure.endpoint }}
-    files.azure.container={{ .Values.federatorClient.config.storage.azure.container }}
-    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "GCP" }}
-    files.gcp.bucket={{ .Values.federatorClient.config.storage.gcp.bucket }}
-    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "LOCAL" }}
-    client.files.temp.dir={{ .Values.federatorClient.config.storage.local.tempDir | default "" }}
-    {{- end }}
+    {{- include "storage" . | nindent 4 }}
 {{- end }}

@@ -18,17 +18,17 @@ data:
   # Filesystem keystore key alias.
   CERT_DEST_KEYSTORE_ALIAS: {{ .Values.certificateManager.config.cert.destination.file.keystoreAlias | default "federator" | quote }}
   # Vault KV v2 destination for generated certificate stores.
-  CERT_DEST_VAULT_PATH: {{ .Values.certificateManager.config.cert.destination.vault.path | default "node-net/client" | quote }}
+  CERT_DEST_VAULT_PATH: {{ .Values.certificateManager.config.cert.destination.vault.path | default "node-net/output" | quote }}
   # Vault keystore attribute name.
   CERT_DEST_VAULT_KEYSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.vault.keystoreFile | default "keystore.p12" | quote }}
   # Vault truststore attribute name.
   CERT_DEST_VAULT_TRUSTSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.vault.truststoreFile | default "truststore.p12" | quote }}
   # Vault keystore key alias.
   CERT_DEST_VAULT_KEYSTORE_ALIAS: {{ .Values.certificateManager.config.cert.destination.vault.keystoreAlias | default "federator" | quote }}
-  # Days before certificate renewal.
-  CERT_RENEWAL_DAYS_BEFORE: {{ .Values.certificateManager.config.cert.renewalDaysBefore | default "30" | quote }}
-  # Certificate scheduler expression.
-  CERT_SCHEDULE_CRON: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" | quote }}
+  # Fixed delay between certificate renewal checks, in milliseconds.
+  CERT_RENEWAL_RATE: {{ .Values.certificateManager.config.cert.renewalRate | default 3600000 | int | quote }}
+  # Renew when remaining validity is at or below this percentage; 100 means every check renews.
+  CERT_RENEWAL_THRESHOLD: {{ .Values.certificateManager.config.cert.renewalThreshold | default 10 | int | quote }}
   {{- if .Values.certificateManager.config.cert.subjectCountry }}
   # Certificate subject country.
   CERT_SUBJECT_COUNTRY: {{ .Values.certificateManager.config.cert.subjectCountry | quote }}
@@ -46,7 +46,11 @@ data:
   # Management Node base URL.
   MANAGEMENT_NODE_BASE_URL: {{ .Values.certificateManager.config.managementNode.baseUrl | default .Values.global.managementNode.baseUrl | quote }}
   # Management Node request timeout.
-  MANAGEMENT_NODE_REQUEST_TIMEOUT: {{ .Values.certificateManager.config.managementNode.requestTimeout | default "60" | quote }}
+  MANAGEMENT_NODE_REQUEST_TIMEOUT: {{ .Values.certificateManager.config.managementNode.requestTimeout | default 60 | int | quote }}
+  # Bootstrap mTLS keystore mounted into the certificate-manager pod.
+  MTLS_KEYSTORE_PATH: "/certs/keystore.p12"
+  # Bootstrap mTLS truststore mounted into the certificate-manager pod.
+  MTLS_TRUSTSTORE_PATH: "/certs/truststore.p12"
   {{- if .Values.certificateManager.config.oauth2.enabled }}
   # Enable Management Node OAuth.
   OAUTH2_ENABLED: "true"

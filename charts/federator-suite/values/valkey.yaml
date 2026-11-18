@@ -1,14 +1,17 @@
 # Valkey configuration. Set external=true to use a managed Valkey/Redis
 # service; otherwise the official Valkey Helm chart is deployed in-cluster.
 valkey:
-  # controls the local Valkey wrapper. Set this to false with external=true.
-  enabled: false  
-  external: false
+  enabled: true # Disable if using external Valkey.
+  external: false # Set true when using external Valkey.
   externalSettings:
-    host: "clustercfg.dev-valkey-cluster.kquwra.euw2.cache.amazonaws.com"
+    host: "example.msk.cache.amazonaws.com"
     port: 6379
     tlsEnabled: true
-    ## provide the necessary authentication details for the external Valkey/Redis instance in the federator-suite:runtimeSecret: federator-runtime-properties
+    externalSecret:
+      ## provide the necessary authentication details for the external Valkey/Redis
+      name: xxxx
+      usernameField: "myUsername" # maps to VALKEY_USERNAME
+      passwordField: "myPassword" # maps to VALKEY_PASSWORD      
   valkey:
     # provide the necessary configuration for the local Valkey deployment
     service:
@@ -27,3 +30,11 @@ valkey:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
         whenScaled: Retain
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: "3.8.0"
+    service:
+      type: NodePort
+      nodePort: 30091  # Access via http://localhost:30091 (mapped in Kind)

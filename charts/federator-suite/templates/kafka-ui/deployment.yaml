@@ -55,8 +55,8 @@ spec:
         - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG
           valueFrom:
             secretKeyRef:
-              name: federator-runtime-properties
-              key: KAFKA_SASL_JAAS_CONFIG
+              name: {{ .Values.kafka.externalSettings.externalSecret.name }}
+              key: {{ .Values.kafka.externalSettings.externalSecret.saslJaasConfig }}
         {{ end }}
         - name: KAFKA_CLUSTERS_0_NAME
           value: {{ .Values.global.orgName | quote }}

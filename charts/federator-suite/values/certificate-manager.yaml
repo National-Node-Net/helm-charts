@@ -48,17 +48,6 @@ certificateManager:
       cpu: 500m
       memory: 512Mi
 
-  # ── Persistence (shared PVC for cert storage) ──────────────────────────────
-  persistence:
-    accessMode: ReadWriteMany
-    size: 1Gi
-    storageClass: ""  # Uses default StorageClass; set to "efs-sc" for AWS EFS
-
-  # ── Bootstrap Certificate ──────────────────────────────────────────────────
-  bootstrapCert:
-    enabled: false
-    secretName: ""  # Name of pre-created Secret containing bootstrap PKCS12
-
   # ── Application Configuration ──────────────────────────────────────────────
   config:
     applicationName: certificate-manager
@@ -72,7 +61,7 @@ certificateManager:
       secretPath: "node-net/client"
       # authentication: TOKEN for Shamir/local (reads VAULT_TOKEN), KUBERNETES for cloud k8s auth
       authentication: KUBERNETES
-      authRole: certificate-manager
+      authRole: certificate-manager-role
       pkiMount: pki-client
 
     # Management Node connectivity
@@ -113,14 +102,14 @@ certificateManager:
           truststoreFile: truststore.p12
           keystoreAlias: federator
         vault:
-          path: node-net/client
+          path: node-net/output
           keystoreFile: keystore.p12
           truststoreFile: truststore.p12
           keystoreAlias: federator
 
     mtls:
-      keystorePath: /home/developer/Downloads/managementNode/docker/mtls-keystore.p12
-      truststorePath: /home/developer/Downloads/managementNode/docker/mtls-truststore.p12
+      keystorePath: /certs/keystore.p12
+      truststorePath: /certs/truststore.p12
       keystoreType: "PKCS12"
 
     resilience:

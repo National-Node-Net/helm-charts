@@ -29,7 +29,7 @@ if [ -n "$not_ready" ]; then
   failed=1
 fi
 
-[ "$failed" -eq 0 ] && echo "✓ All pods Running and Ready"
+[ "$failed" -eq 0 ] && echo "All pods Running and Ready"
 
 echo ""
 echo "Services:"
@@ -39,26 +39,26 @@ echo ""
 echo "Application health:"
 server_pod="$(kubectl get pod -l app=federator-server -n "$namespace" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
 if [ -z "$server_pod" ]; then echo "  ⚠ server pod not found"; else
-  kubectl exec -n "$namespace" "$server_pod" -c federator-server -- sh -c "ps aux | grep -q '[j]ava.*FederatorServer' && echo '  ✓ Server process running' || echo '  ⚠ Server process not found'" 2>/dev/null || echo "  ⚠ Cannot check server process"
+  kubectl exec -n "$namespace" "$server_pod" -c federator-server -- sh -c "ps aux | grep -q '[j]ava.*FederatorServer' && echo '  Server process running' || echo '  ⚠ Server process not found'" 2>/dev/null || echo "  ⚠ Cannot check server process"
 fi
 
 client_pod="$(kubectl get pod -l app=federator-client -n "$namespace" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
 if [ -z "$client_pod" ]; then echo "  ⚠ client pod not found"; else
-  kubectl exec -n "$namespace" "$client_pod" -c federator-client -- sh -c "if command -v wget >/dev/null; then wget -qO- --timeout=2 http://localhost:8085/ 2>/dev/null | grep -q 'JobRunr' && echo '  ✓ JobRunr dashboard responding' || echo '  ⚠ JobRunr not responding'; else echo '  ⚠ wget not available'; fi" 2>/dev/null || echo "  ⚠ Cannot check JobRunr"
+  kubectl exec -n "$namespace" "$client_pod" -c federator-client -- sh -c "if command -v wget >/dev/null; then wget -qO- --timeout=2 http://localhost:8085/ 2>/dev/null | grep -q 'JobRunr' && echo '  JobRunr dashboard responding' || echo '  ⚠ JobRunr not responding'; else echo '  ⚠ wget not available'; fi" 2>/dev/null || echo "  ⚠ Cannot check JobRunr"
 fi
 
 echo ""
 echo "Vault health:"
 vault_pod="$(kubectl get pod -l app.kubernetes.io/name=vault,component=server -n "$namespace" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
 if [ -z "$vault_pod" ]; then echo "  ⚠ vault pod not found"; else
-  kubectl exec -n "$namespace" "$vault_pod" -- vault status 2>/dev/null && echo "  ✓ Vault responding" || echo "  ⚠ Vault not responding (may need init)"
+  kubectl exec -n "$namespace" "$vault_pod" -- vault status 2>/dev/null && echo "  Vault responding" || echo "  ⚠ Vault not responding (may need init)"
 fi
 
 echo ""
 echo "Certificate Manager health:"
 cm_pod="$(kubectl get pod -l app=certificate-manager -n "$namespace" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
 if [ -z "$cm_pod" ]; then echo "  ⚠ certificate-manager pod not found"; else
-  kubectl exec -n "$namespace" "$cm_pod" -- sh -c "pgrep -f 'java.*certificate-manager' > /dev/null && echo '  ✓ Certificate manager process running' || echo '  ⚠ Certificate manager process not found'" 2>/dev/null || echo "  ⚠ Cannot check certificate manager"
+  kubectl exec -n "$namespace" "$cm_pod" -- sh -c "pgrep -f 'java.*certificate-manager' > /dev/null && echo '  Certificate manager process running' || echo '  ⚠ Certificate manager process not found'" 2>/dev/null || echo "  ⚠ Cannot check certificate manager"
 fi
 
 echo ""
@@ -66,7 +66,7 @@ echo "OPA health:"
 opa_pod="$(kubectl get pod -l app=opa -n "$namespace" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
 if [ -z "$opa_pod" ]; then echo "  ⚠ opa pod not found"; else
   ready="$(kubectl get pod "$opa_pod" -n "$namespace" -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null)"
-  [ "$ready" = true ] && echo "  ✓ OPA responding (readiness probe: /health/ready)" || echo "  ⚠ OPA not ready"
+  [ "$ready" = true ] && echo "  OPA responding (readiness probe: /health/ready)" || echo "  ⚠ OPA not ready"
 fi
 
 echo ""
@@ -81,4 +81,4 @@ for pod in $(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.n
   fi
 done
 
-[ "$error_found" -eq 0 ] && echo "  ✓ No errors found in any pods"
+[ "$error_found" -eq 0 ] && echo "  No errors found in any pods"

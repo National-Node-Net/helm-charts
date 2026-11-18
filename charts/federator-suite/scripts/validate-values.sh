@@ -40,4 +40,4 @@ if [ -f "values/valkey.yaml" ]; then
     auto_set_enabled "valkey" "values/valkey.yaml"
 fi
 
-echo "✓ Values validation complete"
+echo "Values validation complete"

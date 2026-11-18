@@ -27,6 +27,10 @@ kafka:
 valkey:
   external: false
   enabled: true
+  ui:
+    enabled: true
+    service:
+      nodePort: 30091  # Access via localhost:9091
   valkey:
     # Override the EKS-oriented base configuration for a one-node KIND cluster.
     replica:
@@ -50,7 +54,7 @@ federatorServer:
   imagePullSecrets:
     - name: image-pull-creds
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-server
+    repository: ghcr/ndtp/ia-federator-server
     tag: "1.2.0-20261104101759"
     pullPolicy: IfNotPresent
   replicaCount: 1
@@ -77,7 +81,7 @@ federatorClient:
   imagePullSecrets:
     - name: image-pull-creds
   image:
-    repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-client
+    repository: ghcr/ndtp/ia-federator-client
     tag: "1.2.0-20261104101759"
     pullPolicy: IfNotPresent
   replicaCount: 1
@@ -99,11 +103,6 @@ federatorClient:
     serverPort: 8081
 
 # Enable UIs for local development
-valkeyUi:
-  enabled: true
-  service:
-    nodePort: 30091  # Access via localhost:9091
-
 # Istio disabled for local
 serviceMesh:
   istio:
@@ -117,9 +116,6 @@ certificateManager:
     repository: 537124944113.dkr.ecr.eu-west-2.amazonaws.com/ndtp/ia-federator-certificate-manager
     tag: "0.90.0-20261023084513"
     pullPolicy: IfNotPresent
-  persistence:
-    # KIND local-path provisioner only supports ReadWriteOnce (not ReadWriteMany)
-    accessMode: ReadWriteOnce
   vaultToken:
     # Init container blocks until vault-setup sidecar creates token secret
     useSecret: true

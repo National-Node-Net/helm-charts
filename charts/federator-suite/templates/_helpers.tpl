@@ -139,46 +139,6 @@ Generic resource name helper (with release prefix)
 
 
 {{/*
-Validate configuration - basic checks
-*/}}
-{{- define "federator-suite.validateConfig" -}}
-{{- if and .Values.valkey.external (not .Values.valkey.externalSettings.host) }}
-{{- fail "ERROR: valkey.external is true but valkey.externalSettings.host is not set" }}
-{{- end }}
-{{- /* Vault validation (always enabled) — cloud provider derived from global.clusterType */ -}}
-{{- if not .Values.vault.devMode }}
-{{- $cp := include "federator-suite.cloudProvider" . }}
-{{- if not (or (eq $cp "aws") (eq $cp "azure") (eq $cp "gcp")) }}
-{{- fail (printf "ERROR: cloud provider must be aws, azure, or gcp — got: %s (from global.clusterType or vault.cloudProvider)" $cp) }}
-{{- end }}
-{{- if and .Values.vault.setup.enabled (eq .Values.vault.secretsManager.secretName "PLACEHOLDER_SECRETS_MANAGER_NAME") }}
-{{- fail "ERROR: vault.secretsManager.secretName is still a placeholder — set from Terraform output" }}
-{{- end }}
-{{- if eq $cp "aws" }}
-{{- if eq (.Values.vault.seal.aws.kmsKeyId | default "PLACEHOLDER_KMS_KEY_ID") "PLACEHOLDER_KMS_KEY_ID" }}
-{{- fail "ERROR: vault.seal.aws.kmsKeyId is still a placeholder — set from Terraform output" }}
-{{- end }}
-{{- else if eq $cp "azure" }}
-{{- if eq (.Values.vault.seal.azure.tenantId | default "PLACEHOLDER_TENANT_ID") "PLACEHOLDER_TENANT_ID" }}
-{{- fail "ERROR: vault.seal.azure.tenantId is still a placeholder — set from Terraform output" }}
-{{- end }}
-{{- else if eq $cp "gcp" }}
-{{- if eq (.Values.vault.seal.gcp.project | default "PLACEHOLDER_PROJECT") "PLACEHOLDER_PROJECT" }}
-{{- fail "ERROR: vault.seal.gcp.project is still a placeholder — set from Terraform output" }}
-{{- end }}
-{{- end }}
-{{- end }}{{/* end vault devMode skip */}}
-{{- /* Certificate Manager validation (only when enabled) */ -}}
-{{- if .Values.certificateManager.enabled }}
-{{- if eq .Values.certificateManager.image.tag "PLACEHOLDER_IMAGE_TAG" }}
-{{- fail "ERROR: certificateManager.image.tag is still a placeholder — set to the latest image tag" }}
-{{- end }}
-{{- end }}
-{{- /* Certificate validation disabled for templating - secrets should be provided at deployment time */ -}}
-{{- /* Single-switch Istio model: serviceMesh.istio.enabled controls all Istio resources */ -}}
-{{- end }}
-
-{{/*
 Image pull policy helper
 */}}
 {{- define "federator-suite.imagePullPolicy" -}}
@@ -300,12 +260,4 @@ Certificate manager service account name
 {{- else }}
 {{- printf "%s-certificate-manager" .Release.Name }}
 {{- end }}
-{{- end }}
-
-{{/*
-Shared cert storage PVC claim name
-Used by certificate-manager (read-write) and server/client deployments (read-only)
-*/}}
-{{- define "federator-suite.certStorage.claimName" -}}
-{{- printf "%s-cert-storage" .Release.Name }}
 {{- end }}
