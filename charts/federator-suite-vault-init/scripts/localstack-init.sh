@@ -9,9 +9,5 @@
 # hook and provides the awslocal command.
 set -eu
 
-awslocal secretsmanager create-secret \
-  --name vault-init-credentials \
-  --secret-string '{"root_token":"debug-root"}' \
-  >/dev/null 2>&1 || true
-
+awslocal secretsmanager create-secret --name vault-init-credentials --secret-string '{"root_token":"debug-root"}' >/dev/null 2>&1 || true
 echo "LocalStack Secrets Manager is ready"

@@ -29,16 +29,8 @@ if [[ "${1:-}" == "--test" ]]; then
   TEST_PLATFORM="${TEST_PLATFORM:-linux/amd64}"
   setup_multiarch_builder "$TEST_PLATFORM"
 
-  docker buildx build \
-    --platform "$TEST_PLATFORM" \
-    --target test \
-    --load \
-    --file "$APP_DIR/Dockerfile" \
-    --tag "$TEST_IMAGE" \
-    "$APP_DIR"
-
-  docker run --rm --entrypoint python "$TEST_IMAGE" \
-    -m unittest discover -s /app -p 'test_*.py' -v
+  docker buildx build --platform "$TEST_PLATFORM" --target test --load --file "$APP_DIR/Dockerfile" --tag "$TEST_IMAGE" "$APP_DIR"
+  docker run --rm --entrypoint python "$TEST_IMAGE" -m unittest discover -s /app -p 'test_*.py' -v
   exit 0
 fi
 

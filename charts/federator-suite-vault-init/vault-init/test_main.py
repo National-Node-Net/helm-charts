@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import sys
@@ -11,12 +12,8 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
 
-class FakeHVACClient:
-    pass
-
-
 hvac = types.ModuleType("hvac")
-hvac.Client = FakeHVACClient
+hvac.Client = Mock(name="HVACClient")
 hvac.exceptions = types.SimpleNamespace(InvalidPath=ValueError)
 boto3 = types.ModuleType("boto3")
 azure = types.ModuleType("azure")
@@ -37,25 +34,29 @@ kubernetes_config = types.ModuleType("kubernetes.config")
 kubernetes_config.load_incluster_config = Mock()
 kubernetes.client = kubernetes_client
 kubernetes.config = kubernetes_config
-sys.modules.setdefault("hvac", hvac)
-sys.modules.setdefault("boto3", boto3)
-sys.modules.setdefault("azure", azure)
-sys.modules.setdefault("azure.identity", azure_identity)
-sys.modules.setdefault("azure.keyvault", azure_keyvault)
-sys.modules.setdefault("azure.keyvault.secrets", azure_secrets)
-sys.modules.setdefault("google", google)
-sys.modules.setdefault("google.cloud", google_cloud)
-sys.modules.setdefault("google.cloud.secretmanager", google_secretmanager)
-sys.modules.setdefault("kubernetes", kubernetes)
-sys.modules.setdefault("kubernetes.client", kubernetes_client)
-sys.modules.setdefault("kubernetes.client.rest", kubernetes_client.rest)
-sys.modules.setdefault("kubernetes.config", kubernetes_config)
+fake_modules = {
+    "hvac": hvac,
+    "boto3": boto3,
+    "azure": azure,
+    "azure.identity": azure_identity,
+    "azure.keyvault": azure_keyvault,
+    "azure.keyvault.secrets": azure_secrets,
+    "google": google,
+    "google.cloud": google_cloud,
+    "google.cloud.secretmanager": google_secretmanager,
+    "kubernetes": kubernetes,
+    "kubernetes.client": kubernetes_client,
+    "kubernetes.client.rest": kubernetes_client.rest,
+    "kubernetes.config": kubernetes_config,
+}
 
-import main  # noqa: E402
+with patch.dict(sys.modules, fake_modules):
+    import main
 
 
 class ProviderTests(unittest.TestCase):
     def test_aws_read_and_write(self):
+        # verify aws secret reads and writes use the expected api calls.
         client = Mock()
         client.get_secret_value.return_value = {"SecretString": "aws-value"}
         boto3 = types.SimpleNamespace(client=Mock(return_value=client))
@@ -68,6 +69,7 @@ class ProviderTests(unittest.TestCase):
         )
 
     def test_azure_read_and_write(self):
+        # verify azure secret names are normalized before access.
         client = Mock()
         client.get_secret.return_value.value = "azure-value"
         with patch.object(main, "SecretClient", Mock(return_value=client)), patch.dict(
@@ -79,6 +81,7 @@ class ProviderTests(unittest.TestCase):
         client.set_secret.assert_called_once_with("secret", "new-value")
 
     def test_gcp_read_and_write(self):
+        # verify gcp payloads are read and new versions are written.
         client = Mock()
         client.access_secret_version.return_value.payload.data = b"gcp-value"
         with patch.object(
@@ -90,12 +93,14 @@ class ProviderTests(unittest.TestCase):
         client.add_secret_version.assert_called_once()
 
     def test_unsupported_provider(self):
+        # reject providers that are not configured by the application.
         with self.assertRaisesRegex(ValueError, "unsupported provider"):
             main.set_or_get_secret("unknown", "secret", "get")
         with self.assertRaisesRegex(ValueError, "unsupported provider"):
             main.set_or_get_secret("unknown", "secret", "put", "value")
 
     def test_aws_read_requires_secret_string(self):
+        # report an error when aws returns no secret string.
         client = Mock()
         client.get_secret_value.return_value = {}
         with patch.object(main, "boto3", types.SimpleNamespace(client=Mock(return_value=client))):
@@ -103,6 +108,7 @@ class ProviderTests(unittest.TestCase):
                 main.set_or_get_secret("aws", "secret", "get")
 
     def test_azure_read_requires_value(self):
+        # report an error when azure returns an empty secret value.
         client = Mock()
         client.get_secret.return_value.value = None
         with patch.object(main, "SecretClient", Mock(return_value=client)):
@@ -110,6 +116,7 @@ class ProviderTests(unittest.TestCase):
                 main.set_or_get_secret("azure", "secret", "get")
 
     def test_gcp_read_requires_payload(self):
+        # report an error when gcp returns no payload.
         client = Mock()
         client.access_secret_version.return_value.payload = None
         with patch.object(main, "secretmanager", types.SimpleNamespace(SecretManagerServiceClient=Mock(return_value=client))):
@@ -119,35 +126,33 @@ class ProviderTests(unittest.TestCase):
 
 class VaultFlowTests(unittest.TestCase):
     def test_local_credentials_read_and_write(self):
+        # verify local credentials are read and stored as kubernetes secrets.
         kube = Mock()
-        kube.request.return_value = (200, {"data": {"vault-credentials": "eyJyb290X3Rva2VuIjoidCJ9"}})
-        result = types.SimpleNamespace(data={"vault-credentials": "eyJyb290X3Rva2VuIjoidCJ9"})
+        credentials = base64.b64encode(json.dumps({"root_token": "test-token"}).encode()).decode()
+        kube.request.return_value = (200, {"data": {"vault-credentials": credentials}})
+        result = types.SimpleNamespace(data={"vault-credentials": credentials})
         kube.read_namespaced_secret.return_value = result
-        fake_client = types.SimpleNamespace(
-            CoreV1Api=Mock(return_value=kube),
-            V1Secret=lambda **kwargs: kwargs,
-            V1ObjectMeta=lambda **kwargs: kwargs,
-        )
+        fake_client = types.SimpleNamespace(CoreV1Api=Mock(return_value=kube), V1Secret=lambda **kwargs: kwargs, V1ObjectMeta=lambda **kwargs: kwargs)
         with patch.object(main, "kubernetes_client", fake_client), patch.object(main.kubernetes_config, "load_incluster_config"):
-            self.assertEqual(json.loads(main.set_or_get_secret("local", "credentials", "get"))["root_token"], "t")
-            main.set_or_get_secret("local", "credentials", "put", '{"root_token":"t"}')
+            self.assertEqual(
+                json.loads(main.set_or_get_secret("local", "credentials", "get"))["root_token"], "test-token"
+            )
+            main.set_or_get_secret("local", "credentials", "put", '{"root_token":"test-token"}')
         self.assertEqual(kube.create_namespaced_secret.call_count, 2)
 
     def test_local_credentials_replaces_existing_secrets(self):
+        # verify existing kubernetes secrets are replaced after a conflict.
         kube = Mock()
         conflict = main.ApiException()
         conflict.status = 409
         kube.create_namespaced_secret.side_effect = [conflict, conflict]
-        fake_client = types.SimpleNamespace(
-            CoreV1Api=Mock(return_value=kube),
-            V1Secret=lambda **kwargs: kwargs,
-            V1ObjectMeta=lambda **kwargs: kwargs,
-        )
+        fake_client = types.SimpleNamespace(CoreV1Api=Mock(return_value=kube), V1Secret=lambda **kwargs: kwargs, V1ObjectMeta=lambda **kwargs: kwargs)
         with patch.object(main, "kubernetes_client", fake_client), patch.object(main.kubernetes_config, "load_incluster_config"):
-            main.set_or_get_secret("local", "credentials", "put", '{"root_token":"t"}')
+            main.set_or_get_secret("local", "credentials", "put", '{"root_token":"test-token"}')
         self.assertEqual(kube.replace_namespaced_secret.call_count, 2)
 
     def test_local_credentials_reports_api_error(self):
+        # convert kubernetes api failures into a clear runtime error.
         kube = Mock()
         error = main.ApiException()
         error.status = 500
@@ -158,6 +163,7 @@ class VaultFlowTests(unittest.TestCase):
                 main.set_or_get_secret("local", "credentials", "get")
 
     def test_local_credentials_requires_stored_value(self):
+        # reject a kubernetes secret that lacks stored credentials.
         kube = Mock()
         kube.read_namespaced_secret.return_value = types.SimpleNamespace(data={})
         fake_client = types.SimpleNamespace(CoreV1Api=Mock(return_value=kube))
@@ -166,22 +172,26 @@ class VaultFlowTests(unittest.TestCase):
                 main.set_or_get_secret("local", "credentials", "get")
 
     def test_shamir_unseal_uses_stored_keys(self):
+        # verify shamir unseal submits the stored key.
         vault = Mock()
         vault.sys.read_seal_status.side_effect = [{"sealed": True}, {"sealed": False}]
         main.unseal(vault, False, {"unseal_keys_b64": ["key"]})
         vault.sys.submit_unseal_key.assert_called_once_with(key="key")
 
     def test_shamir_unseal_requires_keys(self):
+        # reject a shamir initialization response without unseal keys.
         with self.assertRaisesRegex(RuntimeError, "Unseal keys not found"):
             main.unseal(Mock(), False, {})
 
     def test_shamir_unseal_skips_already_unsealed_vault(self):
+        # avoid submitting keys when vault is already unsealed.
         vault = Mock()
         vault.sys.read_seal_status.return_value = {"sealed": False}
         main.unseal(vault, False, {"unseal_keys_b64": ["key"]})
         vault.sys.submit_unseal_key.assert_not_called()
 
     def test_auto_unseal_times_out(self):
+        # fail when automatic unsealing never clears the sealed state.
         vault = Mock()
         vault.sys.read_seal_status.return_value = {"sealed": True}
         with patch.object(main.time, "sleep"):
@@ -189,12 +199,14 @@ class VaultFlowTests(unittest.TestCase):
                 main.unseal(vault, True, {})
 
     def test_shamir_unseal_stops_after_threshold(self):
+        # stop shamir key submission once vault reports unsealed.
         vault = Mock()
         vault.sys.read_seal_status.side_effect = [{"sealed": True}, {"sealed": True}, {"sealed": False}]
         main.unseal(vault, False, {"unseal_keys_b64": ["one", "two"]})
         self.assertEqual(vault.sys.submit_unseal_key.call_count, 2)
 
     def test_auto_unseal_waits_until_unsealed(self):
+        # poll automatic unseal until vault becomes available.
         vault = Mock()
         vault.sys.read_seal_status.side_effect = [{"sealed": True}, {"sealed": False}]
         with patch.object(main.time, "sleep"):
@@ -202,6 +214,7 @@ class VaultFlowTests(unittest.TestCase):
         self.assertEqual(vault.sys.read_seal_status.call_count, 2)
 
     def test_engines_and_kubernetes_roles(self):
+        # configure the kv engine, kubernetes auth, policies, and roles.
         vault = Mock()
         vault.sys.list_mounted_secrets_engines.return_value = {"data": {"secret/": {}}}
         vault.sys.list_auth_methods.return_value = {"data": {}}
@@ -227,12 +240,14 @@ class VaultFlowTests(unittest.TestCase):
         self.assertEqual(vault.sys.create_or_update_policy.call_count, 2)
 
     def test_engines_are_unchanged_when_already_configured(self):
+        # do not recreate an existing kv engine.
         vault = Mock()
         vault.sys.list_mounted_secrets_engines.return_value = {"data": {"secret/": {}, "node-net/": {}}}
         main.configure_engines(vault)
         vault.sys.enable_secrets_engine.assert_not_called()
 
     def test_roles_do_not_reenable_existing_auth(self):
+        # do not re-enable kubernetes auth when it already exists.
         vault = Mock()
         vault.sys.list_auth_methods.return_value = {"data": {"kubernetes/": {}}}
         scripts = Mock()
@@ -242,6 +257,7 @@ class VaultFlowTests(unittest.TestCase):
         vault.sys.enable_auth_method.assert_not_called()
 
     def test_roles_and_policies_apply_password_rule(self):
+        # write password rules through the sys endpoint instead of policies.
         vault = Mock()
         vault.sys.list_auth_methods.return_value = {"data": {"kubernetes/": {}}}
         scripts = Mock()
@@ -258,6 +274,7 @@ class VaultFlowTests(unittest.TestCase):
         )
 
     def test_configure_valkey_preserves_existing_credentials(self):
+        # preserve all existing valkey credentials without generating new ones.
         vault = Mock()
         vault.secrets.kv.v2.read_secret_version.return_value = {
             "data": {"data": {
@@ -273,6 +290,7 @@ class VaultFlowTests(unittest.TestCase):
         vault.secrets.kv.v2.create_or_update_secret.assert_not_called()
 
     def test_configure_valkey_generates_missing_passwords(self):
+        # generate only the missing valkey and sentinel passwords.
         vault = Mock()
         vault.secrets.kv.v2.read_secret_version.side_effect = ValueError
         vault.read.side_effect = [
@@ -295,6 +313,7 @@ class VaultFlowTests(unittest.TestCase):
         )
 
     def test_configure_valkey_fails_when_password_generation_returns_empty(self):
+        # fail when vault returns an empty generated password.
         vault = Mock()
         vault.secrets.kv.v2.read_secret_version.side_effect = ValueError
         vault.read.return_value = {"data": {"password": ""}}
@@ -303,6 +322,7 @@ class VaultFlowTests(unittest.TestCase):
                 main.configure_valkey(vault)
 
     def test_configure_valkey_fails_when_password_generation_returns_none(self):
+        # fail when vault returns no generated password response.
         vault = Mock()
         vault.secrets.kv.v2.read_secret_version.side_effect = ValueError
         vault.read.return_value = None
@@ -310,6 +330,7 @@ class VaultFlowTests(unittest.TestCase):
             main.configure_valkey(vault)
 
     def test_join_peers_sends_join_request(self):
+        # join a raft peer after confirming that it is reachable.
         peer = Mock()
         with patch.object(main.urllib.request, "urlopen") as urlopen, patch.object(main.hvac, "Client", return_value=peer):
             main.join_peers("vault", 2)
@@ -317,12 +338,14 @@ class VaultFlowTests(unittest.TestCase):
         peer.sys.join_raft_cluster.assert_called_once_with(leader_api_addr="http://vault-0.vault-internal:8200")
 
     def test_join_peers_skips_unreachable_peer(self):
+        # skip raft joining when the peer remains unreachable.
         with patch.object(main.urllib.request, "urlopen", side_effect=main.urllib.error.URLError("offline")), patch.object(main.time, "sleep"):
             with patch.object(main.hvac, "Client") as client:
                 main.join_peers("vault", 2)
         client.assert_not_called()
 
     def test_initialize_new_vault_stores_credentials(self):
+        # initialize a new vault and persist its bootstrap credentials.
         vault = Mock()
         vault.sys.is_initialized.return_value = False
         vault.sys.initialize.return_value = {
@@ -331,35 +354,36 @@ class VaultFlowTests(unittest.TestCase):
             "recovery_keys_base64": [],
         }
         with patch.object(main, "unseal") as unseal, patch.object(main, "set_or_get_secret") as store:
-            main.initialize_or_recover(vault, "aws", "secret", 5, 3, False)
+            main.initialize_or_recover(vault, "test", "secret", 5, 3, False)
         vault.sys.initialize.assert_called_once_with(secret_shares=5, secret_threshold=3)
         unseal.assert_called_once()
         store.assert_called_once()
 
     def test_recover_existing_vault_reads_and_unseals(self):
+        # recover stored credentials and unseal an existing vault.
         vault = Mock()
         vault.sys.is_initialized.return_value = True
-        with patch.object(main, "set_or_get_secret", return_value='{"root_token":"root"}') as read, patch.object(
-            main, "unseal"
-        ) as unseal:
-            main.initialize_or_recover(vault, "aws", "secret", 5, 3, True)
-        read.assert_called_once_with("aws", "secret", "get")
+        with patch.object(main, "set_or_get_secret", return_value='{"root_token":"root"}') as read, patch.object(main, "unseal") as unseal:
+            main.initialize_or_recover(vault, "test", "secret", 5, 3, True)
+        read.assert_called_once_with("test", "secret", "get")
         unseal.assert_called_once()
         self.assertEqual(vault.token, "root")
 
     def test_initialize_requires_root_token(self):
+        # fail initialization when vault does not return a root token.
         vault = Mock()
         vault.sys.is_initialized.return_value = False
         vault.sys.initialize.return_value = {"keys_base64": ["key"]}
         with self.assertRaisesRegex(RuntimeError, "root token"):
-            main.initialize_or_recover(vault, "aws", "secret", 5, 3, False)
+            main.initialize_or_recover(vault, "test", "secret", 5, 3, False)
 
     def test_recover_requires_root_token(self):
+        # fail recovery when stored credentials lack a root token.
         vault = Mock()
         vault.sys.is_initialized.return_value = True
         with patch.object(main, "set_or_get_secret", return_value="{}"):
             with self.assertRaisesRegex(RuntimeError, "root_token not found"):
-                main.initialize_or_recover(vault, "aws", "secret", 5, 3, True)
+                main.initialize_or_recover(vault, "test", "secret", 5, 3, True)
 
 
 if __name__ == "__main__":
