@@ -44,7 +44,7 @@ Components Deployed:
 {{- if .Values.kafka.ui.enabled }}
   ✓ Kafka UI
 {{- end }}
-{{- if .Values.valkeyUi.enabled }}
+{{- if .Values.valkey.ui.enabled }}
   ✓ Valkey UI
 {{- end }}
 
@@ -67,9 +67,9 @@ Local Access (Kind Cluster):
     http://localhost:8088
 {{- end }}
 
-{{- if .Values.valkeyUi.enabled }}
+{{- if .Values.valkey.ui.enabled }}
   Valkey UI:
-    http://localhost:{{ .Values.valkeyUi.service.nodePort | default 30091 }}
+    http://localhost:{{ .Values.valkey.ui.service.nodePort | default 30091 }}
 {{- end }}
 
 {{- else }}
@@ -195,7 +195,6 @@ helm upgrade {{ .Release.Name }} . -n {{ .Release.Namespace }} \\
   -f values/certificate-manager.yaml \\
   -f values/opa.yaml \\
   -f values/federator.yaml \\
-  -f values/valkey-ui.yaml \\
   -f values/istio.yaml \\
 {{- if eq .Values.global.environment "local" }}
   -f values/overrides/local/{{ .Values.global.orgName }}.yaml \\

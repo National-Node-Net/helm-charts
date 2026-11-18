@@ -1,4 +1,4 @@
-{{- if .Values.valkeyUi.enabled }}
+{{- if .Values.valkey.ui.enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -10,6 +10,16 @@ metadata:
     {{ include "federator-suite.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  {{- with .Values.valkey.ui.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  {{- end }}
   selector:
     matchLabels:
       app: valkey-ui
@@ -22,8 +32,16 @@ spec:
       restartPolicy: Always
       containers:
       - name: valkey-ui
-        image: "{{ .Values.valkeyUi.image.repository }}:{{ .Values.valkeyUi.image.tag }}"
-        imagePullPolicy: {{ .Values.valkeyUi.image.pullPolicy | default "IfNotPresent" }}
+        image: "{{ .Values.valkey.ui.image.repository }}:{{ .Values.valkey.ui.image.tag }}"
+        imagePullPolicy: {{ .Values.valkey.ui.image.pullPolicy | default "IfNotPresent" }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          # RedisInsight's `node` user is UID 1000; numeric UID lets Kubernetes verify non-root.
+          runAsUser: 1000
         ports:
         - name: http
           containerPort: 5540
@@ -71,5 +89,14 @@ spec:
               key: VALKEY_USERNAME
         {{- end }}
         resources:
-          {{- toYaml .Values.valkeyUi.resources | nindent 10 }}
+          {{- if .Values.valkey.ui.resources }}
+          {{- toYaml .Values.valkey.ui.resources | nindent 10 }}
+        {{- else }}
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        {{- end }}
 {{- end }}

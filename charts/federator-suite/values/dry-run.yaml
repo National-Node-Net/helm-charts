@@ -7,5 +7,3 @@ secrets:
     external:
       existingSecrets:
         federationCert: "existing-federation-cert"
-        clientP12: "existing-client-p12"
-        serverP12: "existing-server-p12"

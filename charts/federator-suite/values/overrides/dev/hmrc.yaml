@@ -46,6 +46,16 @@ kafka:
 valkey:
   external: false
   enabled: true  # Enable in-cluster Bitnami Valkey
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: LoadBalancer
+      annotations:
+        cloud.google.com/load-balancer-type: "External"
   valkey:
     primary:
       resources:
@@ -187,27 +197,11 @@ federatorClient:
       gcp:
         bucket: "development-486319-federator-orgid4-hmrc"
   
-  # Override client-specific env for HMRC
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org1-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-
 # Enable UIs for dev environment
 kafkaUi:
   enabled: true
   image:
     repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: LoadBalancer
-    annotations:
-      cloud.google.com/load-balancer-type: "External"
-
-valkeyUi:
-  enabled: true
-  image:
-    repository: redis/redisinsight
     tag: latest
     pullPolicy: IfNotPresent
   service:

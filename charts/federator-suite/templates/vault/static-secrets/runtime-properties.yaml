@@ -24,12 +24,6 @@ spec:
       excludes:
         - '.*'
       templates:
-        IDP_CLIENT_ID:
-          text: {{ "{{ get .Secrets \"idp_clientId\" }}" | quote }}
-        IDP_JWKS_URL:
-          text: {{ "{{ get .Secrets \"idp_jwksUrl\" }}" | quote }}
-        IDP_TOKEN_URL:
-          text: {{ "{{ get .Secrets \"idp_tokenUrl\" }}" | quote }}
         IDP_MTLS_ENABLED:
           text: {{ "{{ get .Secrets \"idp_mtlsEnabled\" }}" | quote }}
         IDP_KEYSTORE_PASSWORD:

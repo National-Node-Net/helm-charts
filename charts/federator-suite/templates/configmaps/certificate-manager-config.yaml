@@ -29,6 +29,10 @@ data:
   CERT_RENEWAL_DAYS_BEFORE: {{ .Values.certificateManager.config.cert.renewalDaysBefore | default "30" | quote }}
   # Certificate scheduler expression.
   CERT_SCHEDULE_CRON: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" | quote }}
+  # Fixed delay between certificate renewal checks, in milliseconds.
+  CERT_RENEWAL_RATE: {{ .Values.certificateManager.config.cert.renewalRate | default 3600000 | quote }}
+  # Renew when remaining validity is at or below this percentage; 100 means every check renews.
+  CERT_RENEWAL_THRESHOLD: {{ .Values.certificateManager.config.cert.renewalThreshold | default 10 | quote }}
   {{- if .Values.certificateManager.config.cert.subjectCountry }}
   # Certificate subject country.
   CERT_SUBJECT_COUNTRY: {{ .Values.certificateManager.config.cert.subjectCountry | quote }}

@@ -21,11 +21,6 @@ federatorClient:
     storage:
       provider: "LOCAL"
 
-  # Override client-specific env
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org4-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org4.p12
-
 certificateManager:
   config:
     managementNode:

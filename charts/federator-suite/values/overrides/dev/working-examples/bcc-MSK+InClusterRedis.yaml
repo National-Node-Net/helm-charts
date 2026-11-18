@@ -23,6 +23,14 @@ kafka:
 valkey:
   external: false  # Use in-cluster Valkey
   enabled: true    # Deploy Bitnami Valkey subchart
+  ui:
+    enabled: true
+    image:
+      repository: redis/redisinsight
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
 
 # Federator Server - AWS Dev
 federatorServer:
@@ -99,25 +107,11 @@ federatorClient:
         bucket: "537124944113-federator-orgid2-bcc"
         region: "eu-west-2"
   
-  # Override client-specific env for BCC
-  env:
-    IDP_KEYSTORE_PATH: /secrets/federation-cert/client-org1-keystore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-
 # UIs disabled by default (kustomize didn’t expose them). Enable and choose LB/NLB later if needed.
 kafkaUi:
   enabled: true
   image:
     repository: provectuslabs/kafka-ui
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-
-valkeyUi:
-  enabled: true
-  image:
-    repository: redis/redisinsight
     tag: latest
     pullPolicy: IfNotPresent
   service:

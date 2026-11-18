@@ -22,5 +22,5 @@ kafka:
       nodePort: 30090  # Access via http://localhost:9090 (mapped in Kind)
     image:
       repository: provectuslabs/kafka-ui
-      tag: latest
+      tag: "v0.7.2"
       pullPolicy: IfNotPresent

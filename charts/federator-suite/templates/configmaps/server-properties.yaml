@@ -15,9 +15,10 @@ metadata:
 data:
   server.properties: |-
     # Identity Provider (IDP) Configuration
-    idp.client.id=${IDP_CLIENT_ID}
-    idp.jwks.url=${IDP_JWKS_URL}
-    idp.token.url=${IDP_TOKEN_URL}
+    idp.client.id={{ .Values.federatorServer.config.idpClientId }}
+    idp.jwks.url={{ .Values.federatorServer.config.idpJwksUrl }}
+    idp.token.url={{ .Values.federatorServer.config.idpTokenUrl }}
+    
     # Certificate-manager-issued identity for both Keycloak and Management Node mTLS.
     idp.keystore.path=/secrets/federator-runtime-certificates/keystore.p12
     idp.truststore.path=/secrets/idp-mtls-certificates/keycloak.truststore.jks
@@ -82,6 +83,15 @@ data:
     server.truststorePassword=${RUNTIME_TRUSTSTORE_PASSWORD}
     server.p12FilePath=/secrets/federator-runtime-certificates/keystore.p12
     server.p12Password=${RUNTIME_KEYSTORE_PASSWORD}
+
+{{ if .Values.opa.enabled }}
+    # Policy decisions are evaluated by this release's namespace-local OPA.
+    policy.enforcement.enabled=true
+    opa.url=http://{{ include "opa.name" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.opa.service.port | default 8181 }}
+    opa.decision-path=/v1/data/producer/decision
+    opa.connect-timeout=5
+    opa.read-timeout=5
+{{- end}}
 
     # JobRunr Configuration
     org.jobrunr.jobs.default-allow-concurrent-execution=false

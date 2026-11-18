@@ -75,6 +75,10 @@ federatorServer:
   config:
     serverPort: 8080
     logLevel: INFO
+    # Public IdP connection details. Passwords remain in the Vault-sourced runtime Secret.
+    idpClientId: ""
+    idpJwksUrl: ""
+    idpTokenUrl: ""
     
     kafkaConsumerGroup: server.consumer
     kafkaPollDuration: PT10S
@@ -117,14 +121,6 @@ federatorServer:
       gcp:
         bucket: ""
   
-  # Environment variables for the deployment
-  env:
-    IDP_TRUSTSTORE_PATH: /secrets/idp-mtls-certificates/keycloak.truststore.jks
-    IDP_KEYSTORE_PATH: /secrets/idp-mtls-certificates/ndtp-keystore.jks
-    SERVER_P12_FILE_PATH: /secrets/federation-server-p12/dev-ndtp.p12
-    SERVER_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
-    
-
 federatorClient:
   enabled: true
   # Existing Secret providing runtime variables for client properties.
@@ -198,6 +194,10 @@ federatorClient:
   config:
     serverPort: 8081
     logLevel: INFO
+    # Public IdP connection details. Passwords remain in the Vault-sourced runtime Secret.
+    idpClientId: ""
+    idpJwksUrl: ""
+    idpTokenUrl: ""
     
     # Kafka topic configuration
     kafkaTopicPrefix: "Deprecated"  # Override per org
@@ -239,11 +239,4 @@ federatorClient:
     # Connection configuration file location
     connectionsConfiguration: /client-connections/connection-configuration.json
     commonConfiguration: /common-configuration/common-configuration.properties
-  
-  # Environment variables for the deployment
-  env:
-    IDP_KEYSTORE_PATH: /secrets/idp-mtls-certificates/idp-client-keystore.jks
-    IDP_TRUSTSTORE_PATH: /secrets/idp-mtls-certificates/keycloak.truststore.jks
-    CLIENT_P12_FILE_PATH: /secrets/federation-client-p12/client-org1.p12
-    CLIENT_TRUSTSTORE_FILE_PATH: /secrets/federation-cert/keycloak.truststore.jks
   
