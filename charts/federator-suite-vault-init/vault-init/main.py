@@ -38,8 +38,8 @@ class Config:
     # load process configuration once when the container starts.
     aws_endpoint_url: str | None = os.getenv("AWS_ENDPOINT_URL") or None # localstack/testing only empty for real AWS
     aws_region: str = os.getenv("AWS_REGION", "eu-west-2")
-    azure_vault_name: str = os.getenv("AZURE_VAULT_NAME", "")
-    azure_vault_url: str = f"https://{os.getenv('AZURE_VAULT_NAME', '')}.vault.azure.net/"
+    azure_keyvault_name: str = os.getenv("AZURE_VAULT_NAME", "")
+    azure_keyvault_url: str = f"https://{os.getenv('AZURE_VAULT_NAME', '')}.vault.azure.net/"
     cert_secret: str = os.getenv("CERT_MANAGER_TOKEN_SECRET", "certificate-manager-vault-token")
     gcp_project: str = os.getenv("GCP_PROJECT", "")
     hostname: str = os.getenv("HOSTNAME", "vault-0")
@@ -110,7 +110,7 @@ def set_or_get_secret(provider: str, secret: str, operation: str, value: str | N
         # dont log Azure HTTP request and response headers before using the SDK.
         logging.getLogger("azure").setLevel(logging.WARNING)
         logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
-        client = SecretClient(vault_url=config.azure_vault_url, credential=DefaultAzureCredential())
+        client = SecretClient(vault_url=config.azure_keyvault_url, credential=DefaultAzureCredential())
         name = secret.strip("/").split("/")[-1]
         if operation == "get":
             result = client.get_secret(name)
@@ -149,8 +149,8 @@ def unseal(vault: hvac.Client, vault_auto_unseal: bool, response: dict[str, Any]
             vault.sys.submit_unseal_key(key=key)
             status = vault.sys.read_seal_status()
             if status.get("sealed") is False:
-                break
-        return
+                return
+        raise RuntimeError("Vault still sealed after submitting all unseal keys")
     
     LOG.info("Waiting for Vault to auto-unseal.")
     for _ in range(60):

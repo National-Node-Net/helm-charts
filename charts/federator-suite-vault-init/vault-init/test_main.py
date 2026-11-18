@@ -205,6 +205,13 @@ class VaultFlowTests(unittest.TestCase):
         main.unseal(vault, False, {"unseal_keys_b64": ["one", "two"]})
         self.assertEqual(vault.sys.submit_unseal_key.call_count, 2)
 
+    def test_shamir_unseal_fails_when_keys_are_exhausted(self):
+        # fail when every supplied key is rejected and vault remains sealed.
+        vault = Mock()
+        vault.sys.read_seal_status.side_effect = [{"sealed": True}, {"sealed": True}]
+        with self.assertRaisesRegex(RuntimeError, "still sealed"):
+            main.unseal(vault, False, {"unseal_keys_b64": ["key"]})
+
     def test_auto_unseal_waits_until_unsealed(self):
         # poll automatic unseal until vault becomes available.
         vault = Mock()
@@ -342,6 +349,13 @@ class VaultFlowTests(unittest.TestCase):
         with patch.object(main.urllib.request, "urlopen", side_effect=main.urllib.error.URLError("offline")), patch.object(main.time, "sleep"):
             with patch.object(main.hvac, "Client") as client:
                 main.join_peers("vault", 2)
+        client.assert_not_called()
+
+    def test_join_peers_skips_single_replica(self):
+        # do not contact peers when Vault has only one replica.
+        with patch.object(main.urllib.request, "urlopen") as urlopen, patch.object(main.hvac, "Client") as client:
+            main.join_peers("vault", 1)
+        urlopen.assert_not_called()
         client.assert_not_called()
 
     def test_initialize_new_vault_stores_credentials(self):
