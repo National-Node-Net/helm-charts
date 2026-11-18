@@ -104,19 +104,6 @@ data:
     management.node.base.url={{ .Values.global.managementNode.baseUrl }}
   
     # File Storage Configuration
-    file.stream.chunk.size=1000
-    {{- if eq (.Values.federatorServer.config.storage.provider | upper) "S3" }}
-    files.storage.provider=S3
-    files.s3.bucket={{ .Values.federatorServer.config.storage.s3.bucket }}
-    aws.s3.region={{ .Values.federatorServer.config.storage.s3.region }}
-    {{- else if eq (.Values.federatorServer.config.storage.provider | upper) "AZURE" }}
-    files.storage.provider=AZURE
-    azure.storage.connection.string={{ .Values.federatorServer.config.storage.azure.connectionString }}
-    azure.storage.account.name={{ .Values.federatorServer.config.storage.azure.accountName }}
-    azure.storage.endpoint={{ .Values.federatorServer.config.storage.azure.endpoint }}
-    files.azure.container={{ .Values.federatorServer.config.storage.azure.container }}
-    {{- else if eq (.Values.federatorServer.config.storage.provider | upper) "GCP" }}
-    files.storage.provider=GCP
-    files.gcp.bucket={{ .Values.federatorServer.config.storage.gcp.bucket }}
-    {{- end }}
+    file.stream.chunk.size={{ .Values.federatorServer.config.fileStreamChunkSize | default 1000 }}
+    {{- include "storage" . | nindent 4 }}
 {{- end }}

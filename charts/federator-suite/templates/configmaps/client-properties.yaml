@@ -85,21 +85,6 @@ data:
     client.truststoreFilePath=/secrets/federator-runtime-certificates/truststore.p12
     client.truststorePassword=${RUNTIME_TRUSTSTORE_PASSWORD}
 
-    # Connection Configuration
-
     # File Storage Configuration
-    client.files.storage.provider={{ .Values.federatorClient.config.storage.provider | upper }}
-    {{- if eq (.Values.federatorClient.config.storage.provider | upper) "S3" }}
-    files.s3.bucket={{ .Values.federatorClient.config.storage.s3.bucket }}
-    aws.s3.region={{ .Values.federatorClient.config.storage.s3.region }}
-    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "AZURE" }}
-    azure.storage.connection.string={{ .Values.federatorClient.config.storage.azure.connectionString }}
-    azure.storage.account.name={{ .Values.federatorClient.config.storage.azure.accountName }}
-    azure.storage.endpoint={{ .Values.federatorClient.config.storage.azure.endpoint }}
-    files.azure.container={{ .Values.federatorClient.config.storage.azure.container }}
-    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "GCP" }}
-    files.gcp.bucket={{ .Values.federatorClient.config.storage.gcp.bucket }}
-    {{- else if eq (.Values.federatorClient.config.storage.provider | upper) "LOCAL" }}
-    client.files.temp.dir={{ .Values.federatorClient.config.storage.local.tempDir | default "" }}
-    {{- end }}
+    {{- include "storage" . | nindent 4 }}
 {{- end }}

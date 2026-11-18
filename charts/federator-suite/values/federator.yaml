@@ -107,16 +107,73 @@ federatorServer:
     # Storage provider configuration
     storage:
       provider: LOCAL  # LOCAL, S3, AZURE, or GCS
-      s3:
-        bucket: ""
-        region: ""
+      aws:
+        bucket: company-documents
+        region: eu-west-2
+        authentication:
+          # podIdentity: Uses the Kubernetes ServiceAccount name and namespace. Requires an EKS Pod Identity Association mapping the
+          #              ServiceAccount to an AWS IAM role (configured in AWS).
+          #
+          # irsa:        Uses the Kubernetes ServiceAccount annotation:
+          #              eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/s3-storage-role
+          #
+          # secret:      Uses AWS access credentials from an existing Kubernetes Secret.
+          type: podIdentity # irsa or secret
+
+          # Required when type: secret
+          # existingSecret: aws-storage-credentials
+          # secretKeys:
+          #   accessKeyId: awsSecretAccessKeyId
+          #   secretAccessKey: awsSecretAccessKey
+          #   sessionToken: awsSessionToken  # optional
+
       azure:
-        connectionString: ""
-        accountName: ""
-        endpoint: ""
+        accountName: companystorage # mandatory for workload identity and account identity
+        container: documents # mandatory for Azure storage configuration
+        endpoint: https://companystorage.blob.core.windows.net
+        authentication:
+          # workloadIdentity: Uses the Kubernetes ServiceAccount annotation:
+          #                   azure.workload.identity/client-id: "11111111-2222-4333-8444-555555555555"
+          #                   Requires Pod label azure.workload.identity/use: "true"
+          #                   and an Azure federated identity credential.
+          #
+          # connectionString: Uses an Azure Storage connection string from
+          #                   an existing Kubernetes Secret.
+          #
+          # accountKey:       Uses an Azure Storage account key from
+          #                   an existing Kubernetes Secret.
+          type: workloadIdentity
+
+          # Required when type: connectionString or accountKey
+          # existingSecret: azure-storage-credentials
+          # secretKeys:
+          #   connectionString: myConnectionString  # connectionString only
+          #   accountKey: myAccountKey              # accountKey only
+
       gcp:
-        bucket: ""
-  
+        projectId: company-production
+        bucket: company-documents
+        authentication:
+          # workloadIdentity: Uses GKE Workload Identity Federation.
+          #                   Can use direct IAM principal bindings with the
+          #                   Kubernetes ServiceAccount name and namespace.
+          #                   Alternatively, for GCP service account impersonation,
+          #                   uses the Kubernetes ServiceAccount annotation:
+          #                   iam.gke.io/gcp-service-account: storage-app@company-production.iam.gserviceaccount.com
+          #                   Requires corresponding GCP IAM bindings.
+          #
+          # serviceAccount:   Uses a Google service account JSON credentials file
+          #                   from an existing Kubernetes Secret.
+          #                   Mounted as a file and referenced through
+          #                   GOOGLE_APPLICATION_CREDENTIALS.
+          type: workloadIdentity
+
+          # Required when type: serviceAccount
+          # existingSecret: gcp-storage-credentials
+          # secretKeys:
+          #   credentialsJson: credentials.json
+
+
 federatorClient:
   enabled: true
   image:
@@ -210,18 +267,71 @@ federatorClient:
     # File storage configuration
     storage:
       provider: LOCAL  # LOCAL, S3, AZURE, or GCS
-      local:
-        tempDir: /tmp/federator-files
-      s3:
-        bucket: ""
-        region: ""
+      aws:
+        bucket: company-documents
+        region: eu-west-2
+        authentication:
+          # podIdentity: Uses the Kubernetes ServiceAccount name and namespace. Requires an EKS Pod Identity Association mapping the
+          #              ServiceAccount to an AWS IAM role (configured in AWS).
+          #
+          # irsa:        Uses the Kubernetes ServiceAccount annotation:
+          #              eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/s3-storage-role
+          #
+          # secret:      Uses AWS access credentials from an existing Kubernetes Secret.
+          type: podIdentity # irsa or secret
+
+          # Required when type: secret
+          # existingSecret: aws-storage-credentials
+          # secretKeys:
+          #   accessKeyId: awsSecretAccessKeyId
+          #   secretAccessKey: awsSecretAccessKey
+          #   sessionToken: awsSessionToken  # optional
+
       azure:
-        connectionString: ""
-        accountName: ""
-        endpoint: ""
-        container: ""
+        accountName: companystorage # mandatory for workload identity and account identity
+        container: documents # mandatory for Azure storage configuration
+        endpoint: https://companystorage.blob.core.windows.net
+        authentication:
+          # workloadIdentity: Uses the Kubernetes ServiceAccount annotation:
+          #                   azure.workload.identity/client-id: "11111111-2222-4333-8444-555555555555"
+          #                   Requires Pod label azure.workload.identity/use: "true"
+          #                   and an Azure federated identity credential.
+          #
+          # connectionString: Uses an Azure Storage connection string from
+          #                   an existing Kubernetes Secret.
+          #
+          # accountKey:       Uses an Azure Storage account key from
+          #                   an existing Kubernetes Secret.
+          type: workloadIdentity
+
+          # Required when type: connectionString or accountKey
+          # existingSecret: azure-storage-credentials
+          # secretKeys:
+          #   connectionString: myConnectionString  # connectionString only
+          #   accountKey: myAccountKey              # accountKey only
+
       gcp:
-        bucket: ""
+        projectId: company-production
+        bucket: company-documents
+        authentication:
+          # workloadIdentity: Uses GKE Workload Identity Federation.
+          #                   Can use direct IAM principal bindings with the
+          #                   Kubernetes ServiceAccount name and namespace.
+          #                   Alternatively, for GCP service account impersonation,
+          #                   uses the Kubernetes ServiceAccount annotation:
+          #                   iam.gke.io/gcp-service-account: storage-app@company-production.iam.gserviceaccount.com
+          #                   Requires corresponding GCP IAM bindings.
+          #
+          # serviceAccount:   Uses a Google service account JSON credentials file
+          #                   from an existing Kubernetes Secret.
+          #                   Mounted as a file and referenced through
+          #                   GOOGLE_APPLICATION_CREDENTIALS.
+          type: workloadIdentity
+
+          # Required when type: serviceAccount
+          # existingSecret: gcp-storage-credentials
+          # secretKeys:
+          #   credentialsJson: credentials.json
     
     # Jobs dashboard (JobRunr)
     jobsDashboardPort: 8085

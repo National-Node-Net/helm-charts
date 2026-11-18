@@ -79,6 +79,8 @@ spec:
               name: kafka-user
               key: sasl.jaas.config
             {{- end }}
+
+        {{- include "storage,auth" . | nindent 8 }}
         
         {{- if .Values.valkey.external }}
         # use the user-provided external valkey secret.
@@ -140,6 +142,7 @@ spec:
         - name: runtime-certificates
           mountPath: /secrets/federator-runtime-certificates
           readOnly: true
+        {{- include "storage.auth.volumeMounts" . | nindent 8 }}
         securityContext:
           {{- toYaml .Values.federatorClient.securityContext | nindent 10 }}
       volumes:
@@ -151,6 +154,7 @@ spec:
       - name: runtime-certificates
         secret:
           secretName: federator-runtime-certificates
+      {{- include "storage.auth.volumes" . | nindent 6 }}
       {{- with .Values.federatorClient.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

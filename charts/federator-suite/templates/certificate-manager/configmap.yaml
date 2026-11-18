@@ -25,10 +25,6 @@ data:
   CERT_DEST_VAULT_TRUSTSTORE_FILE: {{ .Values.certificateManager.config.cert.destination.vault.truststoreFile | default "truststore.p12" | quote }}
   # Vault keystore key alias.
   CERT_DEST_VAULT_KEYSTORE_ALIAS: {{ .Values.certificateManager.config.cert.destination.vault.keystoreAlias | default "federator" | quote }}
-  # Days before certificate renewal.
-  CERT_RENEWAL_DAYS_BEFORE: {{ .Values.certificateManager.config.cert.renewalDaysBefore | default "30" | quote }}
-  # Certificate scheduler expression.
-  CERT_SCHEDULE_CRON: {{ .Values.certificateManager.config.cert.scheduleCron | default "0 0 2 * * ?" | quote }}
   # Fixed delay between certificate renewal checks, in milliseconds.
   CERT_RENEWAL_RATE: {{ .Values.certificateManager.config.cert.renewalRate | default 3600000 | int | quote }}
   # Renew when remaining validity is at or below this percentage; 100 means every check renews.

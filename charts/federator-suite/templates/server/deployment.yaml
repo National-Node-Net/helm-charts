@@ -80,6 +80,8 @@ spec:
               key: sasl.jaas.config
             {{- end }}
 
+        {{- include "storage,auth" . | nindent 8 }}
+
         {{- if .Values.valkey.external }}
         # use the user-provided external valkey secret.
         - name: VALKEY_PASSWORD
@@ -135,6 +137,7 @@ spec:
         - name: runtime-certificates
           mountPath: /secrets/federator-runtime-certificates
           readOnly: true
+        {{- include "storage.auth.volumeMounts" . | nindent 8 }}
         securityContext:
           {{- toYaml .Values.federatorServer.securityContext | nindent 10 }}
       volumes:
@@ -146,6 +149,7 @@ spec:
       - name: runtime-certificates
         secret:
           secretName: federator-runtime-certificates
+      {{- include "storage.auth.volumes" . | nindent 6 }}
       {{- with .Values.federatorServer.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
