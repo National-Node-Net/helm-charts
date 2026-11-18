@@ -36,25 +36,23 @@ LOG = logging.getLogger("vault-init")
 @dataclass(frozen=True)
 class Config:
     # load process configuration once when the container starts.
-    auto_unseal: bool = os.getenv("VAULT_AUTO_UNSEAL", "true").lower() == "true"
     aws_endpoint_url: str | None = os.getenv("AWS_ENDPOINT_URL") or None # localstack/testing only empty for real AWS
     aws_region: str = os.getenv("AWS_REGION", "eu-west-2")
     azure_vault_name: str = os.getenv("AZURE_VAULT_NAME", "")
-    azure_vault_url: str = f"https://{os.getenv('AZURE_VAULT_NAME', '')}.vault.azure.net/"        
+    azure_vault_url: str = f"https://{os.getenv('AZURE_VAULT_NAME', '')}.vault.azure.net/"
     cert_secret: str = os.getenv("CERT_MANAGER_TOKEN_SECRET", "certificate-manager-vault-token")
     gcp_project: str = os.getenv("GCP_PROJECT", "")
     hostname: str = os.getenv("HOSTNAME", "vault-0")
-    key_shares: int = int(os.getenv("VAULT_KEY_SHARES", "5"))
-    key_threshold: int = int(os.getenv("VAULT_KEY_THRESHOLD", "3"))
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     namespace: str = os.getenv("NAMESPACE", "default")
     provider: str = os.getenv("CLOUD_PROVIDER", "aws")
-    replicas: int = int(os.getenv("VAULT_REPLICAS", "1"))
     secret: str = os.getenv("SECRETS_MANAGER_SECRET_NAME", "")
     vault_addr: str = os.getenv("VAULT_ADDR", "http://localhost:8200").rstrip("/")
+    vault_auto_unseal: bool = os.getenv("VAULT_AUTO_UNSEAL", "true").lower() == "true"
     vault_configs_path: str = os.getenv("VAULT_CONFIGS_PATH", "secret/data")
-    
-
+    vault_key_shares: int = int(os.getenv("VAULT_KEY_SHARES", "5"))
+    vault_key_threshold: int = int(os.getenv("VAULT_KEY_THRESHOLD", "3"))
+    vault_replicas: int = int(os.getenv("VAULT_REPLICAS", "1"))
 
 config = Config()
 
@@ -137,10 +135,10 @@ def set_or_get_secret(provider: str, secret: str, operation: str, value: str | N
     raise ValueError(f"unsupported provider: {provider}")
 
 
-def unseal(vault: hvac.Client, auto_unseal: bool, response: dict[str, Any]) -> None:
+def unseal(vault: hvac.Client, vault_auto_unseal: bool, response: dict[str, Any]) -> None:
     # unseal Vault with Shamir keys or wait for cloud auto-unseal.
     # Compose uses Shamir keys; production may wait for cloud KMS auto-unseal.
-    if not auto_unseal:
+    if not vault_auto_unseal:
         LOG.info("Shamir unseal enabled. Unsealing with stored keys.")
         keys = response.get("keys_base64", []) or response.get("unseal_keys_b64", [])
         if not keys:
@@ -153,6 +151,7 @@ def unseal(vault: hvac.Client, auto_unseal: bool, response: dict[str, Any]) -> N
             if status.get("sealed") is False:
                 break
         return
+    
     LOG.info("Waiting for Vault to auto-unseal.")
     for _ in range(60):
         status = vault.sys.read_seal_status()
@@ -186,6 +185,7 @@ def join_peers(statefulset: str, replicas: int) -> None:
         else:
             LOG.warning("%s not reachable after 300s. Skipping join.", peer_name)
             continue
+
         peer = hvac.Client(url=address, timeout=15)
         for attempt in range(60):
             try:
@@ -290,19 +290,19 @@ def park() -> None:
         time.sleep(3600)
 
 
-def initialize_or_recover(vault: hvac.Client, provider: str, secret: str, key_shares: int, key_threshold: int, auto_unseal: bool) -> None:
+def initialize_or_recover(vault: hvac.Client, provider: str, secret: str, vault_key_shares: int, vault_key_threshold: int, vault_auto_unseal: bool) -> None:
     # initialize Vault once or recover its stored bootstrap credentials.
     # initialize once, then recover the stored root token on later runs.
     if not vault.sys.is_initialized():
         LOG.info("Vault not initialized. Running init.")
-        if auto_unseal:
-            response = vault.sys.initialize(recovery_shares=key_shares, recovery_threshold=key_threshold)
+        if vault_auto_unseal:
+            response = vault.sys.initialize(recovery_shares=vault_key_shares, recovery_threshold=vault_key_threshold)
         else:
-            response = vault.sys.initialize(secret_shares=key_shares, secret_threshold=key_threshold)
+            response = vault.sys.initialize(secret_shares=vault_key_shares, secret_threshold=vault_key_threshold)
         vault.token = response.get("root_token", "")
         if not vault.token:
             raise RuntimeError("Init failed: root token not found")
-        unseal(vault, auto_unseal, response)
+        unseal(vault, vault_auto_unseal, response)
         credentials = json.dumps(
             {
                 "root_token": vault.token,
@@ -319,7 +319,7 @@ def initialize_or_recover(vault: hvac.Client, provider: str, secret: str, key_sh
         vault.token = credentials.get("root_token", "")
         if not vault.token:
             raise RuntimeError("root_token not found in secret backend payload")
-        unseal(vault, auto_unseal, credentials)
+        unseal(vault, vault_auto_unseal, credentials)
 
 
 def main() -> None:
@@ -358,10 +358,17 @@ def main() -> None:
         raise RuntimeError("Vault API unreachable after 300s")
 
     # phase 2: initialize or recover Vault, then join peers.
-    initialize_or_recover(vault, config.provider, config.secret, config.key_shares, config.key_threshold, config.auto_unseal)
+    initialize_or_recover(
+        vault,
+        config.provider,
+        config.secret,
+        config.vault_key_shares,
+        config.vault_key_threshold,
+        config.vault_auto_unseal,
+    )
 
     # phase 3: join peer Vault instances.
-    join_peers(config.hostname.rsplit("-", 1)[0], config.replicas)
+    join_peers(config.hostname.rsplit("-", 1)[0], config.vault_replicas)
     if not (vault.auth.token.lookup_self() or {}).get("data", {}).get("id"):
         raise RuntimeError("Root token validation failed")
     
