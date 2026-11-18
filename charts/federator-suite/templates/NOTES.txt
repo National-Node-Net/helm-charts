@@ -198,7 +198,7 @@ helm upgrade {{ .Release.Name }} . -n {{ .Release.Namespace }} \\
   -f values/istio.yaml \\
 {{- if eq .Values.global.environment "local" }}
   -f values/overrides/local/{{ .Values.global.orgName }}.yaml \\
-  -f values/overrides/local/secrets.yaml
+  -f values/overrides/local/{{ .Values.global.orgName }}.secrets.json
 {{- else if eq .Values.global.environment "dev" }}
   -f values/overrides/dev/{{ .Values.global.orgName }}.yaml \\
   -f values/overrides/dev/secrets/{{ .Values.global.orgName }}-secrets.yaml

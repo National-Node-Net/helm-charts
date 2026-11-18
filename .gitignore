@@ -31,6 +31,8 @@
 id_rsa
 id_rsa.pub
 
+
+
 # Overrides
 *.overrides.yaml
 overrides.yaml
@@ -46,4 +48,33 @@ mongooverrides.yaml
 *.Zone.Identifier
 pat.txt
 
-vault-init
+# python caches, test output and local environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+ENV/
+
+# python packaging output
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# local test and debugger files
+.python-version
+.coverage*
+coverage.xml
+
+# generated debug files anywhere in the repository
+debug_files/

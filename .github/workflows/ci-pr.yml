@@ -1,0 +1,59 @@
+# spdx-license-identifier: apache-2.0
+# © crown copyright 2026. this work has been developed by the national digital twin programme
+# and is legally attributed to the uk's department for business, innovation, science and trade (bist) as the governing entity.
+
+name: ci on pull request
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  vault-init-tests:
+    name: vault-init tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: set up helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
+      - name: set up vault
+        uses: hashicorp/setup-vault@v3
+        with:
+          version: 1.18.1
+
+      - name: set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.9.17
+
+      - name: install python dependencies with uv
+        working-directory: charts/federator-suite-vault-init
+        run: |
+          uv venv .venv --python 3.13
+          uv pip install --python .venv/bin/python -r vault-init/requirements.debug.txt
+
+      - name: install audit tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq
+          yq_version="v4.44.3"
+          sudo curl --fail --silent --show-error --location \
+            "https://github.com/mikefarah/yq/releases/download/${yq_version}/yq_linux_amd64" \
+            --output /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: run all vault-init tests
+        working-directory: charts/federator-suite-vault-init
+        run: ./scripts/run-tests.sh --all
