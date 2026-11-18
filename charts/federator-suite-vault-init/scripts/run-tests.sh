@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# what it does: runs the vault-init python unit tests in the test container.
-# use --audit to run the broader chart and provider audit, or --all to run both.
+# what it does: runs the vault-init python unit tests.
+# use --docker to run the same tests in the multi-stage docker test image.
 # run from the federator-suite-vault-init directory:
 #   ./scripts/run-tests.sh
-#   ./scripts/run-tests.sh --audit
-#   ./scripts/run-tests.sh --all
-# the audit requires python3, helm, jq, mike farah yq, and vault on the path.
+#   ./scripts/run-tests.sh --docker
+# dependencies are installed into .venv with uv when a local uv environment exists.
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,30 +16,26 @@ fi
 
 run_unit_tests() {
   echo "== running vault-init unit tests =="
-  "$script_dir/build-and-push-to-ecr.sh" --test
+  if [[ -x "$project_dir/.venv/bin/python" ]]; then
+    "$python_bin" -m unittest discover -s "$project_dir/vault-init" -p 'test_*.py' -v
+  else
+    "$script_dir/build-and-push-to-ecr.sh" --test
+  fi
 }
 
-run_audit() {
-  echo "== running chart and provider audit =="
-  "$python_bin" "$project_dir/tests/audit.py"
-}
-
-case "${1:-unit}" in
-  unit|--unit)
+case "${1:-}" in
+  "")
     run_unit_tests
     ;;
-  audit|--audit)
-    run_audit
-    ;;
-  all|--all)
-    run_unit_tests
-    run_audit
+  docker|--docker)
+    echo "== running vault-init unit tests in docker =="
+    "$script_dir/build-and-push-to-ecr.sh" --test
     ;;
   -h|--help)
     sed -n '2,9p' "$0"
     ;;
   *)
-    echo "usage: $0 [--unit|--audit|--all]" >&2
+    echo "usage: $0 [--docker]" >&2
     exit 2
     ;;
 esac

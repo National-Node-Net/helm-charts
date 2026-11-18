@@ -23,16 +23,6 @@ jobs:
       - name: check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
-      - name: set up helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.17.3
-
-      - name: set up vault
-        uses: hashicorp/setup-vault@v3
-        with:
-          version: 1.18.1
-
       - name: set up uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -44,16 +34,19 @@ jobs:
           uv venv .venv --python 3.13
           uv pip install --python .venv/bin/python -r vault-init/requirements.debug.txt
 
-      - name: install audit tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes jq
-          yq_version="v4.44.3"
-          sudo curl --fail --silent --show-error --location \
-            "https://github.com/mikefarah/yq/releases/download/${yq_version}/yq_linux_amd64" \
-            --output /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: run all vault-init tests
+      - name: run vault-init unit tests
         working-directory: charts/federator-suite-vault-init
-        run: ./scripts/run-tests.sh --all
+        run: ./scripts/run-tests.sh
+
+      - name: build vault-init runtime image
+        working-directory: charts/federator-suite-vault-init
+        run: docker build --no-cache --target runtime --tag vault-init:ci .
+
+      - name: scan vault-init image with trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: vault-init:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH

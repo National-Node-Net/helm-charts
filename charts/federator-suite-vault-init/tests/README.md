@@ -11,7 +11,7 @@ cd charts/federator-suite-vault-init
 ./scripts/run-tests.sh
 ```
 
-Use `./scripts/run-tests.sh --audit` for this audit or `./scripts/run-tests.sh --all` for both.
+This audit is separate from the vault-init Python tests and is not part of the vault-init CI job.
 
 The audit creates a fresh temporary evidence directory and prints its path. It renders the current chart, runs provider/failure branch checks with mocked cloud CLIs and Kubernetes calls, and starts a local in-memory Vault server for initialization and restart tests. It does not access a real cloud backend or Kubernetes cluster. The tests use no real credentials.
 
