@@ -17,22 +17,17 @@ source_file="$(cd "$(dirname "$0")/.." && pwd)/vault-init/main.py"
 target_file="/tmp/main.py"
 
 echo "+ copying ${source_file} to ${pod}:${target_file}"
-kubectl --context "$context" cp "$source_file" \
-  "${namespace}/${pod}:${target_file}" \
-  -c "$container"
+kubectl --context "$context" cp "$source_file" "${namespace}/${pod}:${target_file}" -c "$container"
 
 echo "+ checking the Phase 1 log line"
-kubectl --context "$context" exec "$pod" -n "$namespace" -c "$container" -- \
-  grep -n "Phase 1 - Waiting for Vault API" "$target_file"
+kubectl --context "$context" exec "$pod" -n "$namespace" -c "$container" -- grep -n "Phase 1 - Waiting for Vault API" "$target_file"
 
 echo "+ compiling ${target_file} inside the container"
-kubectl --context "$context" exec "$pod" -n "$namespace" -c "$container" -- \
-  python -m py_compile "$target_file"
+kubectl --context "$context" exec "$pod" -n "$namespace" -c "$container" -- python -m py_compile "$target_file"
 
 if [[ "${1:-}" == "--run" ]]; then
   echo "+ running the copied bootstrap script"
-  kubectl --context "$context" exec -it "$pod" -n "$namespace" -c "$container" -- \
-    sh -c "echo START; python -u '$target_file'; echo EXIT:\$?"
+  kubectl --context "$context" exec -it "$pod" -n "$namespace" -c "$container" -- sh -c "echo START; python -u '$target_file'; echo EXIT:\$?"
 else
   echo "+ syntax check complete; use --run to execute against Vault"
 fi
