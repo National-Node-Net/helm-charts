@@ -81,15 +81,14 @@ storage:
 client.files.storage.provider={{ $provider }}
 
 {{- if eq $provider "S3" }}
-# AWS S3 Configuration
 {{- $aws := $storage.aws | default dict }}
 {{- $auth := dig "authentication" "type" "" $aws }}
+# AWS S3 Configuration - using authentication {{ $auth }}
 
 {{- if not (has $auth (list "podIdentity" "irsa" "secret")) }}
 {{- fail (printf "Unsupported AWS authentication type: %s (expected podIdentity, irsa or secret)" $auth) }}
 {{- end }}
 
-# using authentication {{ $auth }}
 files.s3.bucket={{ required "storage.aws.bucket is required" ($aws.bucket | default "") }}
 aws.s3.region={{ required "storage.aws.region is required" ($aws.region | default "") }}
 {{- if eq $auth "secret" }}
@@ -107,15 +106,14 @@ aws.s3.secret.access.key=${AWS_SECRET_ACCESS_KEY}
 {{- end }}
 
 {{- else if eq $provider "AZURE" }}
-# Azure Storage Configuration
 {{- $azure := $storage.azure | default dict }}
 {{- $auth := dig "authentication" "type" "" $azure }}
+# Azure Storage Configuration - using authentication {{ $auth }}
 
 {{- if not (has $auth (list "workloadIdentity" "connectionString" "accountKey")) }}
 {{- fail (printf "Unsupported Azure authentication type: %s (expected workloadIdentity, connectionString or accountKey)" $auth) }}
 {{- end }}
 
-# using authentication {{ $auth }}
 files.azure.container={{ required "storage.azure.container is required" ($azure.container | default "") }}
 
 {{- if eq $auth "workloadIdentity" }}
@@ -145,15 +143,14 @@ azure.storage.endpoint={{ . }}
 {{- end }}
 
 {{- else if eq $provider "GCP" }}
-# GCP Storage Configuration
 {{- $gcp := $storage.gcp | default dict }}
 {{- $auth := dig "authentication" "type" "" $gcp }}
+# GCP Storage Configuration - using authentication {{ $auth }}
 
 {{- if not (has $auth (list "workloadIdentity" "serviceAccount")) }}
 {{- fail (printf "Unsupported GCP authentication type: %s (expected workloadIdentity or serviceAccount)" $auth) }}
 {{- end }}
 
-# using authentication {{ $auth }}
 files.gcp.bucket={{ required "storage.gcp.bucket is required" ($gcp.bucket | default "") }}
 
 {{- if eq $auth "serviceAccount" }}
@@ -162,8 +159,7 @@ files.gcp.bucket={{ required "storage.gcp.bucket is required" ($gcp.bucket | def
 {{- end }}
 
 {{- else if eq $provider "LOCAL" }}
-# Local Storage Configuration
-# using authentication local
+# Local Storage Configuration - using authentication local
 client.files.temp.dir={{ dig "local" "tempDir" "" $storage }}
 
 {{- else }}
