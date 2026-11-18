@@ -1,0 +1,79 @@
+services:
+  vault:
+    image: hashicorp/vault:1.18.1
+    command: server
+    cap_add:
+      - IPC_LOCK
+    # Debug mode mounts the generated local files into the container and uses
+    # LocalStack to exercise the AWS integration without contacting AWS.
+    volumes:
+      - vault-data:/vault/file
+      - ./debug_files/vault.hcl:/vault/config/vault.hcl:ro
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD-SHELL", "code=$$(wget -S -O /dev/null http://127.0.0.1:8200/v1/sys/health 2>&1 | awk '/HTTP\\// {code=$$2} END {print code}'); test \"$$code\" = 200 -o \"$$code\" = 429 -o \"$$code\" = 501"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: secretsmanager
+      AWS_DEFAULT_REGION: eu-west-2
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/10-secrets.sh:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4566/_localstack/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  cloud-secret-py:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        REQUIREMENTS: vault-init/requirements.debug.txt
+    hostname: vault-0
+    depends_on:
+      vault:
+        condition: service_started
+      localstack:
+        condition: service_healthy
+    environment:
+      CLOUD_PROVIDER: aws
+      AWS_REGION: eu-west-2
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SECRETS_MANAGER_SECRET_NAME: vault-init-credentials
+      VAULT_ADDR: http://vault:8200
+      VAULT_REPLICAS: "1"
+      VAULT_AUTO_UNSEAL: "false"
+      VAULT_CONFIGS_PATH: /policys
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./debug_files:/policys:ro
+      - ./debug_files/kubernetes-ca.crt:/var/run/secrets/kubernetes.io/serviceaccount/ca.crt:ro
+    ports:
+      - "5678:5678"
+    entrypoint: []
+    command:
+      - python
+      - -Xfrozen_modules=off
+      - -m
+      - debugpy
+      - --listen
+      - 0.0.0.0:5678
+      - --wait-for-client
+      - /app/main.py
+
+volumes:
+  vault-data:
+  localstack-data:

@@ -42,8 +42,6 @@ federator-suite/
 ├── scripts/
 │   ├── check-prereqs.sh        # Checks required tools
 │   ├── generate-certs.sh       # Generates local certs, updates secrets values
-│   ├── test-render.sh          # Renders chart across scenarios
-│   ├── validate-values.sh      # Aligns enabled/external flags
 │   └── make/                   # Makefile helper scripts
 │       ├── bootstrap_runtime_secrets.sh # Bootstraps local runtime secrets into Vault
 │       ├── build_deps.sh        # Builds chart dependencies

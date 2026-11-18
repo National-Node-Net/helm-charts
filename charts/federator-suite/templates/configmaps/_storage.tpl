@@ -84,7 +84,6 @@ client.files.storage.provider={{ $provider }}
 {{- $aws := $storage.aws | default dict }}
 {{- $auth := dig "authentication" "type" "" $aws }}
 # AWS S3 Configuration - using authentication {{ $auth }}
-
 {{- if not (has $auth (list "podIdentity" "irsa" "secret")) }}
 {{- fail (printf "Unsupported AWS authentication type: %s (expected podIdentity, irsa or secret)" $auth) }}
 {{- end }}
@@ -109,7 +108,6 @@ aws.s3.secret.access.key=${AWS_SECRET_ACCESS_KEY}
 {{- $azure := $storage.azure | default dict }}
 {{- $auth := dig "authentication" "type" "" $azure }}
 # Azure Storage Configuration - using authentication {{ $auth }}
-
 {{- if not (has $auth (list "workloadIdentity" "connectionString" "accountKey")) }}
 {{- fail (printf "Unsupported Azure authentication type: %s (expected workloadIdentity, connectionString or accountKey)" $auth) }}
 {{- end }}
@@ -146,7 +144,6 @@ azure.storage.endpoint={{ . }}
 {{- $gcp := $storage.gcp | default dict }}
 {{- $auth := dig "authentication" "type" "" $gcp }}
 # GCP Storage Configuration - using authentication {{ $auth }}
-
 {{- if not (has $auth (list "workloadIdentity" "serviceAccount")) }}
 {{- fail (printf "Unsupported GCP authentication type: %s (expected workloadIdentity or serviceAccount)" $auth) }}
 {{- end }}
