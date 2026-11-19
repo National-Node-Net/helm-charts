@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # what it does: builds the vault-init image for one or more platforms and pushes
 # it to the n3-vault-init ecr repository. with --test, it builds the test stage
-# and runs the python unit tests locally in docker.
+# and runs the python unit tests locally in docker.vault-init
 # run from the federator-suite-vault-init directory:
 #   ./scripts/build-and-push-to-ecr.sh --test
 #   ./scripts/build-and-push-to-ecr.sh
@@ -25,7 +25,7 @@ setup_multiarch_builder() {
 }
 
 if [[ "${1:-}" == "--test" ]]; then
-  TEST_IMAGE="cloud-secret-py:test"
+  TEST_IMAGE="vault-init:test"
   TEST_PLATFORM="${TEST_PLATFORM:-linux/amd64}"
   setup_multiarch_builder "$TEST_PLATFORM"
 
