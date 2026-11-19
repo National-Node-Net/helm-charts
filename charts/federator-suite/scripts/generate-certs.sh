@@ -21,7 +21,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Configuration
 # ============================================
 ORG="${1:-LOCAL}"
-SECRETS_FILE="${2:-${ROOT_DIR}/values/overrides/local/secrets.yaml}"
+SECRETS_FILE="${2:-${ROOT_DIR}/values/overrides/local/bcc.secrets.json}"
 
 CERTS_DIR="${ROOT_DIR}/certs/${ORG}"
 VALIDITY_DAYS=365

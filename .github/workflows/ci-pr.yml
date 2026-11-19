@@ -1,0 +1,52 @@
+# spdx-license-identifier: apache-2.0
+# © crown copyright 2026. this work has been developed by the national digital twin programme
+# and is legally attributed to the uk's department for business, innovation, science and trade (bist) as the governing entity.
+
+name: ci on pull request
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  vault-init-tests:
+    name: vault-init tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.9.17
+
+      - name: install python dependencies with uv
+        working-directory: charts/federator-suite-vault-init
+        run: |
+          uv venv .venv --python 3.13
+          uv pip install --python .venv/bin/python -r vault-init/requirements.debug.txt
+
+      - name: run vault-init unit tests
+        working-directory: charts/federator-suite-vault-init
+        run: ./scripts/run-tests.sh
+
+      - name: build vault-init runtime image
+        working-directory: charts/federator-suite-vault-init
+        run: docker build --no-cache --target runtime --tag vault-init:ci .
+
+      - name: scan vault-init image with trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: vault-init:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
