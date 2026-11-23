@@ -15,8 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  vault-init-tests:
-    name: vault-init tests
+  vault-init-unit-tests:
+    name: vault-init unit tests
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -38,6 +38,14 @@ jobs:
         working-directory: charts/federator-suite-vault-init
         run: ./scripts/run-tests.sh
 
+  vault-init-image-scan:
+    name: vault-init image scan
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
       - name: build vault-init runtime image
         working-directory: charts/federator-suite-vault-init
         run: docker build --no-cache --target runtime --tag vault-init:ci .
@@ -50,3 +58,4 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
           severity: CRITICAL,HIGH
+          vuln-type: os,library
