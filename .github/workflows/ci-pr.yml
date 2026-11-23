@@ -2,7 +2,7 @@
 # © crown copyright 2026. this work has been developed by the national digital twin programme
 # and is legally attributed to the uk's department for business, innovation, science and trade (bist) as the governing entity.
 
-name: ci on pull request
+name: vault-init ci on pull request
 
 on:
   workflow_call:
