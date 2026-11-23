@@ -18,6 +18,11 @@ WORKDIR /app
 # before copying the patched dependency set so stale dist-info is not scanned.
 RUN python -m pip uninstall -y msgpack setuptools urllib3 || true
 COPY --from=dependencies /python-deps /usr/local/lib/python3.13/site-packages
+# pip is only needed while building the image. Its vendored packages are not
+# required by the runtime and can otherwise be reported by the image scanner.
+RUN rm -rf /usr/local/lib/python3.13/site-packages/pip \
+           /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
+           /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.13
 COPY vault-init/main.py /app/
 USER 65532:65532
 ENTRYPOINT ["python", "/app/main.py"]

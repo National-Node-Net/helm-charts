@@ -31,6 +31,28 @@ if [[ "${1:-}" == "--test" ]]; then
 
   docker buildx build --platform "$TEST_PLATFORM" --target test --load --file "$APP_DIR/Dockerfile" --tag "$TEST_IMAGE" "$APP_DIR"
   docker run --rm --entrypoint python "$TEST_IMAGE" -m unittest discover -s /app -p 'test_*.py' -v
+
+  # Keep this aligned with .github/workflows/ci-pr.yml:
+  # format=table, exit-code=1, ignore-unfixed=true, severity=CRITICAL,HIGH,
+  # and the os/library vulnerability types. The action also enables secret
+  # scanning by default, so request both scanners explicitly here.
+  TRIVY_CACHE_DIR="${TRIVY_CACHE_DIR:-$APP_DIR/.cache/trivy}"
+  TRIVY_ARGS=(
+    image
+    --scanners vuln,secret
+    --vuln-type os,library
+    --format table
+    --exit-code 1
+    --ignore-unfixed
+    --severity CRITICAL,HIGH
+    "$TEST_IMAGE"
+  )
+  mkdir -p "$TRIVY_CACHE_DIR"
+  docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$TRIVY_CACHE_DIR:/root/.cache/trivy" \
+    aquasec/trivy:0.69.3 \
+    --cache-dir /root/.cache/trivy "${TRIVY_ARGS[@]}"
   exit 0
 fi
 
