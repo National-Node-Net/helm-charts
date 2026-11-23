@@ -1,6 +1,9 @@
 # Install dependencies in the target-platform image so pip resolves wheels
 # for the same Python and architecture used by the runtime image.
 FROM python:3.13-slim AS dependencies
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 ARG REQUIREMENTS=vault-init/requirements.txt
 COPY ${REQUIREMENTS} requirements.txt
@@ -8,9 +11,14 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.17 /uv /uvx /bin/
 RUN uv pip install \
       --no-cache \
       --target=/python-deps \
-      -r requirements.txt
+      -r requirements.txt \
+      "msgpack>=1.2.3" \
+      "setuptools>=78.1.1"
 
 FROM python:3.13-slim AS runtime
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 COPY --from=dependencies /python-deps /usr/local/lib/python3.13/site-packages
