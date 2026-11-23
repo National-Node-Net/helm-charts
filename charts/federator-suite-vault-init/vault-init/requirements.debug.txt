@@ -5,3 +5,7 @@ google-cloud-secret-manager==2.24.0
 hvac==2.4.0
 debugpy==1.8.14
 kubernetes==33.1.0
+# Security floors for transitive runtime dependencies.
+msgpack>=1.2.3
+setuptools>=78.1.1
+urllib3>=2.8.0

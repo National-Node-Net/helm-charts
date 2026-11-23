@@ -8,19 +8,15 @@ WORKDIR /build
 ARG REQUIREMENTS=vault-init/requirements.txt
 COPY ${REQUIREMENTS} requirements.txt
 COPY --from=ghcr.io/astral-sh/uv:0.9.17 /uv /uvx /bin/
-RUN uv pip install \
-      --no-cache \
-      --target=/python-deps \
-      -r requirements.txt \
-      "msgpack>=1.2.3" \
-      "setuptools>=78.1.1"
+RUN uv pip install --no-cache --target=/python-deps -r requirements.txt
 
 FROM python:3.13-slim AS runtime
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y  && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
+# The Python base image includes older copies of these packages. Remove them
+# before copying the patched dependency set so stale dist-info is not scanned.
+RUN python -m pip uninstall -y msgpack setuptools urllib3 || true
 COPY --from=dependencies /python-deps /usr/local/lib/python3.13/site-packages
 COPY vault-init/main.py /app/
 USER 65532:65532
