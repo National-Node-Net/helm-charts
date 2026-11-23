@@ -12,7 +12,7 @@ on:
       - develop
     paths:
       - 'charts/federator-suite-vault-init/**'
-      - '.github/workflows/ci-pr.yml'
+      - '.github/workflows/vault-init-ci-pr.yml'
       - '!**.md'
 
 permissions:
