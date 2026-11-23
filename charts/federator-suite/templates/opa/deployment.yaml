@@ -74,7 +74,11 @@ spec:
               protocol: TCP
           readinessProbe:
             httpGet:
+              {{- if .Values.opa.policiesConfigMap }}
+              path: /health?bundles # waits for configured bundles to activate
+              {{- else }}
               path: /health/ready # requires policies/health.rego (system.health.ready)
+              {{- end }}
               port: 8181
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -82,7 +86,11 @@ spec:
             failureThreshold: 5
           livenessProbe:
             httpGet:
+              {{- if .Values.opa.policiesConfigMap }}
+              path: /health
+              {{- else }}
               path: /health/live # requires policies/health.rego (system.health.live)
+              {{- end }}
               port: 8181
             initialDelaySeconds: 5
             periodSeconds: 10
