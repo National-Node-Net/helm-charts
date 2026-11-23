@@ -10,6 +10,10 @@ on:
   pull_request:
     branches:
       - develop
+    paths:
+      - 'charts/federator-suite-vault-init/**'
+      - '.github/workflows/ci-pr.yml'
+      - '!**.md'
 
 permissions:
   contents: read
@@ -42,18 +46,31 @@ jobs:
     name: vault-init image scan
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            suffix: amd64
+          - platform: linux/arm64
+            suffix: arm64
     steps:
       - name: check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
       - name: build vault-init runtime image
         working-directory: charts/federator-suite-vault-init
-        run: docker build --no-cache --target runtime --tag vault-init:ci .
+        run: docker buildx build --platform ${{ matrix.platform }} --load --no-cache --target runtime --tag vault-init:ci-${{ matrix.suffix }} .
 
       - name: scan vault-init image with trivy
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
-          image-ref: vault-init:ci
+          image-ref: vault-init:ci-${{ matrix.suffix }}
           format: table
           exit-code: "1"
           ignore-unfixed: true
