@@ -27,8 +27,12 @@ data:
     idp.truststore.password=${RUNTIME_TRUSTSTORE_PASSWORD}
 
     # Kafka Configuration (Sender)
+    kafka.additional.allow.auto.create.topics={{ .Values.federatorClient.config.kafkaAllowAutoCreateTopics | default false }}
+    kafka.consumerGroup={{ .Values.federatorClient.config.kafkaConsumerGroup | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
     kafka.sender.defaultKeySerializerClass=org.apache.kafka.common.serialization.BytesSerializer
     kafka.sender.defaultValueSerializerClass=org.apache.kafka.common.serialization.BytesSerializer
+    kafka.topic.prefix={{ .Values.federatorClient.config.kafkaTopicPrefix | default (printf "Deprecated%s" (.Values.global.orgName | upper)) }}
+
 {{ if not .Values.kafka.external }}
     # Internal Kafka Bootstrap Servers
     kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}
@@ -43,10 +47,6 @@ data:
     kafka.additional.sasl.mechanism={{ .Values.kafka.externalSettings.saslMechanism | default "SCRAM-SHA-512" }}
 {{- end }}  
    
-    # Topic Configuration
-    kafka.topic.prefix={{ .Values.federatorClient.config.kafkaTopicPrefix | default (printf "Deprecated%s" (.Values.global.orgName | upper)) }}
-    kafka.consumerGroup={{ .Values.federatorClient.config.kafkaConsumerGroup | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
-
 {{ if not .Values.valkey.external }}
     # Internal Redis/Valkey Configuration
     redis.host={{ include "valkey.hostname" . }}
