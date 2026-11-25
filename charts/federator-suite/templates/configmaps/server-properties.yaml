@@ -34,11 +34,13 @@ data:
     client.name={{ .Values.federatorServer.config.clientName | default (printf "ndtp.dbt.gov.uk.%s" (.Values.global.orgName | lower)) }}
 
     # Kafka Configuration (Consumer)
+    kafka.additional.allow.auto.create.topics={{ .Values.federatorServer.config.kafkaAllowAutoCreateTopics | default false }}
+    kafka.consumerGroup=server.consumer
     kafka.defaultKeyDeserializerClass=org.apache.kafka.common.serialization.StringDeserializer
     kafka.defaultValueDeserializerClass=uk.gov.dbt.ndtp.federator.access.AccessMessageDeserializer
-    kafka.consumerGroup=server.consumer
     kafka.pollDuration=PT10S
     kafka.pollRecords=100
+
 {{ if not .Values.kafka.external }}
     # Internal Kafka Bootstrap Servers
     kafka.bootstrapServers={{ include "kafka.bootstrapServers" . }}

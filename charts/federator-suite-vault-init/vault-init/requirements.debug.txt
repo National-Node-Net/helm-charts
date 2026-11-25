@@ -1,0 +1,11 @@
+boto3==1.40.1
+azure-identity==1.23.0
+azure-keyvault-secrets==4.9.0
+google-cloud-secret-manager==2.24.0
+hvac==2.4.0
+debugpy==1.8.14
+kubernetes==33.1.0
+# Security floors for transitive runtime dependencies.
+msgpack>=1.2.3
+setuptools>=78.1.1
+urllib3>=2.8.0

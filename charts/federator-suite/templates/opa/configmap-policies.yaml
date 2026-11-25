@@ -1,6 +1,7 @@
 {{- if .Values.opa.enabled }}
 ---
-# Rego policy files loaded verbatim from files/opa-policies/ (chart-relative).
+# Either render the supplied OPA bundle configuration or load the bundled
+# Rego policy files from files/opa-policies/ (chart-relative).
 # Helm ConfigMaps aren't content-hash-suffixed like Kustomize's
 # configMapGenerator, so the Deployment carries a checksum/config annotation
 # (see deployment.yaml) to force a rollout whenever this content changes.
@@ -13,5 +14,10 @@ metadata:
     {{ include "federator-suite.labels" . | nindent 4 }}
     app.kubernetes.io/component: opa
 data:
+  {{- if .Values.opa.policiesConfigMap }}
+  config.yaml: |
+    {{- toYaml .Values.opa.policiesConfigMap | nindent 4 }}
+  {{- else }}
   {{- (.Files.Glob "files/opa-policies/*.rego").AsConfig | nindent 2 }}
+  {{- end }}
 {{- end }}

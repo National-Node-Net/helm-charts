@@ -52,10 +52,6 @@ jobs:
         with:
           version: v4.2.4
 
-      - name: Add Helm repositories
-        run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-
       - name: Build Helm dependencies
         run: |
           helm dependency update $CHART_DIR$PACKAGE_NAME/charts/valkey
@@ -95,10 +91,6 @@ jobs:
         shell: bash    
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ndtp --password-stdin
-
-      - name: Add Helm repositories
-        run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
 
       - name: Build Helm dependencies
         run: |
