@@ -46,7 +46,7 @@ class Config:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     namespace: str = os.getenv("NAMESPACE", "default")
     provider: str = os.getenv("CLOUD_PROVIDER", "aws")
-    secret: str = os.getenv("SECRETS_MANAGER_SECRET_NAME", "")
+    secret_key: str = os.getenv("SECRETS_MANAGER_SECRET_NAME", "")
     vault_addr: str = os.getenv("VAULT_ADDR", "http://localhost:8200").rstrip("/")
     vault_auto_unseal: bool = os.getenv("VAULT_AUTO_UNSEAL", "true").lower() == "true"
     vault_configs_path: str = os.getenv("VAULT_CONFIGS_PATH", "secret/data")
@@ -57,28 +57,28 @@ class Config:
 config = Config()
 
 
-def preflight_checks(provider: str, secret: str) -> None:
-    LOG.info("Running preflight checks for [%s] before continuing.", provider)
+def preflight_checks(provider: str, secret_key: str) -> None:
+    LOG.info("Running preflight checks for [%s::%s] before continuing", provider, secret_key)
     if provider == "aws":
         client = boto3.client("secretsmanager", region_name=config.aws_region, endpoint_url=config.aws_endpoint_url)
         try:
-            result = client.get_secret_value(SecretId=secret)
+            result = client.get_secret_value(SecretId=secret_key)
             current_value = result.get("SecretString")
             if current_value is None:
-                raise RuntimeError(f"AWS secret {secret} does not contain SecretString")
+                raise RuntimeError(f"AWS secret {secret_key} does not contain SecretString")
 
             # Write the existing value back unchanged to verify write permission.
-            client.put_secret_value(SecretId=secret, SecretString=current_value, VersionStages=["AWSCURRENT"])
+            client.put_secret_value(SecretId=secret_key, SecretString=current_value, VersionStages=["AWSCURRENT"])
         except client.exceptions.ResourceNotFoundException:
             # create a placeholder and verify that it can also be updated. The
             # real Vault credentials replace this value after initialization.
             placeholder = "vault-init-preflight"
-            client.create_secret(Name=secret, SecretString=placeholder)
-            client.put_secret_value(SecretId=secret, SecretString=placeholder, VersionStages=["AWSCURRENT"])
+            client.create_secret(Name=secret_key, SecretString=placeholder)
+            client.put_secret_value(SecretId=secret_key, SecretString=placeholder, VersionStages=["AWSCURRENT"])
 
 
-def set_or_get_secret(provider: str, secret: str, operation: str, value: str | None = None) -> str:
-    LOG.info("Handling secrets for [%s]", provider)
+def set_or_get_secret(provider: str, secret_key: str, operation: str, value: str | None = None) -> str:
+    LOG.info("Handling secrets for [%s::%s]", provider, secret_key)
 
     # read or write the configured secret using one provider-specific path.
     if provider == "local":
@@ -87,18 +87,18 @@ def set_or_get_secret(provider: str, secret: str, operation: str, value: str | N
         kube = kubernetes_client.CoreV1Api()
         if operation == "get":
             try:
-                result = kube.read_namespaced_secret(name=secret, namespace=config.namespace)
+                result = kube.read_namespaced_secret(name=secret_key, namespace=config.namespace)
             except ApiException as exc:
-                raise RuntimeError(f"Kubernetes secret {secret} returned HTTP {exc.status}") from exc
+                raise RuntimeError(f"Kubernetes secret {secret_key} returned HTTP {exc.status}") from exc
             encoded = (result.data or {}).get("vault-credentials")
             if not encoded:
-                raise RuntimeError(f"vault-credentials missing in Kubernetes secret {secret}")
+                raise RuntimeError(f"vault-credentials missing in Kubernetes secret {secret_key}")
             return base64.b64decode(encoded, validate=True).decode()
         # store two Kubernetes Secrets: one for Vault credentials and one for the root token.
         root_token = json.loads(value or "{}").get("root_token", "")
         secrets = (
             # the full Vault bootstrap response is used when recovering Vault.
-            (secret, "vault-credentials", value or ""),
+            (secret_key, "vault-credentials", value or ""),
             # the certificate manager only needs the Vault root token.
             (config.cert_secret, "vault-token", root_token),
         )
@@ -120,11 +120,11 @@ def set_or_get_secret(provider: str, secret: str, operation: str, value: str | N
     if provider == "aws":
         client = boto3.client("secretsmanager", region_name=config.aws_region, endpoint_url=config.aws_endpoint_url)
         if operation == "get":
-            result = client.get_secret_value(SecretId=secret)
+            result = client.get_secret_value(SecretId=secret_key)
             if "SecretString" not in result:
                 raise RuntimeError("secret has no SecretString")
             return result["SecretString"]
-        client.put_secret_value(SecretId=secret, SecretString=value or "", VersionStages=["AWSCURRENT"])
+        client.put_secret_value(SecretId=secret_key, SecretString=value or "", VersionStages=["AWSCURRENT"])
         return ""
 
     if provider == "azure":
@@ -133,7 +133,7 @@ def set_or_get_secret(provider: str, secret: str, operation: str, value: str | N
         logging.getLogger("azure").setLevel(logging.WARNING)
         logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
         client = SecretClient(vault_url=config.azure_keyvault_url, credential=DefaultAzureCredential())
-        name = secret.strip("/").split("/")[-1]
+        name = secret_key.strip("/").split("/")[-1]
         if operation == "get":
             result = client.get_secret(name)
             if result.value is None:
@@ -144,7 +144,7 @@ def set_or_get_secret(provider: str, secret: str, operation: str, value: str | N
 
     if provider == "gcp":
         # GCP reads the latest version and appends new versions on writes.
-        name = f"projects/{config.gcp_project}/secrets/{secret.strip('/').split('/')[-1]}"
+        name = f"projects/{config.gcp_project}/secrets/{secret_key.strip('/').split('/')[-1]}"
         client = secretmanager.SecretManagerServiceClient(transport="rest")
         if operation == "get":
             result = client.access_secret_version(request={"name": name + "/versions/latest"})
@@ -161,7 +161,7 @@ def unseal(vault: hvac.Client, vault_auto_unseal: bool, response: dict[str, Any]
     # unseal Vault with Shamir keys or wait for cloud auto-unseal.
     # Compose uses Shamir keys; production may wait for cloud KMS auto-unseal.
     if not vault_auto_unseal:
-        LOG.info("Shamir unseal enabled. Unsealing with stored keys.")
+        LOG.info("Shamir unseal enabled. Unsealing with stored keys")
         keys = response.get("keys_base64", []) or response.get("unseal_keys_b64", [])
         if not keys:
             raise RuntimeError("Unseal keys not found in init response")
@@ -174,7 +174,7 @@ def unseal(vault: hvac.Client, vault_auto_unseal: bool, response: dict[str, Any]
                 return
         raise RuntimeError("Vault still sealed after submitting all unseal keys")
     
-    LOG.info("Waiting for Vault to auto-unseal.")
+    LOG.info("Waiting for Vault to auto-unseal")
     for _ in range(60):
         status = vault.sys.read_seal_status()
         if status.get("sealed") is False:
@@ -189,7 +189,7 @@ def join_peers(statefulset: str, replicas: int) -> None:
     for index in range(1, replicas):
         address = f"http://{statefulset}-{index}.{statefulset}-internal:8200"
         peer_name = f"{statefulset}-{index}"
-        LOG.info("Waiting for %s to be reachable.", peer_name)
+        LOG.info("Waiting for %s to be reachable", peer_name)
         # phase 3: wait for each peer before requesting its Raft join.
         for attempt in range(60):
             try:
@@ -198,27 +198,27 @@ def join_peers(statefulset: str, replicas: int) -> None:
             except urllib.error.HTTPError as exc:
                 # any http response means the peer is reachable; its vault state
                 # is handled by the subsequent raft join request.
-                LOG.info("%s is reachable (Vault returned HTTP %s).", peer_name, exc.code)
+                LOG.info("%s is reachable (Vault returned HTTP %s)", peer_name, exc.code)
                 break
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 if attempt < 59:
-                    LOG.warning("%s is not reachable yet (%s); retrying in 5s (%d/60).", peer_name, exc, attempt + 1)
+                    LOG.warning("%s is not reachable yet (%s); retrying in 5s (%d/60)", peer_name, exc, attempt + 1)
                     time.sleep(5)
         else:
-            LOG.warning("%s not reachable after 300s. Skipping join.", peer_name)
+            LOG.warning("%s not reachable after 300s. Skipping join", peer_name)
             continue
 
         peer = hvac.Client(url=address, timeout=15)
         for attempt in range(60):
             try:
                 peer.sys.join_raft_cluster(leader_api_addr=f"http://{statefulset}-0.{statefulset}-internal:8200")
-                LOG.info("Raft join request sent to %s.", peer_name)
+                LOG.info("Raft join request sent to %s", peer_name)
                 break
             except Exception as exc:
                 if attempt == 59:
-                    LOG.warning("Raft join request to %s did not succeed after 300s; continuing.", peer_name)
+                    LOG.warning("Raft join request to %s did not succeed after 300s; continuing", peer_name)
                     break
-                LOG.warning("Raft join request to %s is not ready (%s); retrying in 5s (%d/60).", peer_name, exc, attempt + 1)
+                LOG.warning("Raft join request to %s is not ready (%s); retrying in 5s (%d/60)", peer_name, exc, attempt + 1)
                 time.sleep(5)
 
 
@@ -228,10 +228,10 @@ def configure_engines(vault: hvac.Client) -> None:
     mounts = vault.sys.list_mounted_secrets_engines()["data"]
     for mount in ("secret", "node-net"):
         if mount + "/" in mounts:
-            LOG.info("KV v2 mount %s/ already present.", mount)
+            LOG.info("KV v2 mount %s/ already present", mount)
         else:
             vault.sys.enable_secrets_engine(backend_type="kv", path=mount, options={"version": "2"})
-            LOG.info("Enabled KV v2 mount %s/.", mount)
+            LOG.info("Enabled KV v2 mount %s/", mount)
 
 
 def configure_valkey(vault: hvac.Client) -> None:
@@ -247,7 +247,7 @@ def configure_valkey(vault: hvac.Client) -> None:
     # check if all required fields are already present in the existing data.
     fields = ("valkey_username", "valkey_password", "sentinel_username", "sentinel_password")
     if all(data.get(field) for field in fields):
-        LOG.info("Internal Valkey and Sentinel credentials already exist in secret/apps/valkey.")
+        LOG.info("Internal Valkey and Sentinel credentials already exist in secret/apps/valkey")
         return
 
     def generate() -> str:
@@ -266,7 +266,7 @@ def configure_valkey(vault: hvac.Client) -> None:
         "sentinel_password": data.get("sentinel_password") or generate(),
     }
     vault.secrets.kv.v2.create_or_update_secret(mount_point="secret", path="apps/valkey", secret=value)
-    LOG.info("Created internal Valkey and Sentinel credentials in secret/apps/valkey.")
+    LOG.info("Created internal Valkey and Sentinel credentials in secret/apps/valkey")
 
 
 def configure_roles_and_policies(vault: hvac.Client) -> None:
@@ -277,7 +277,7 @@ def configure_roles_and_policies(vault: hvac.Client) -> None:
     if "kubernetes/" not in auth:
         # enable Kubernetes auth once; repeated runs reuse the existing method.
         vault.sys.enable_auth_method(method_type="kubernetes")
-        LOG.info("Enabled Kubernetes auth.")
+        LOG.info("Enabled Kubernetes auth")
 
     # load the cluster CA used by Vault when validating Kubernetes service accounts.
     with open("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt", encoding="utf-8") as f:
@@ -291,28 +291,28 @@ def configure_roles_and_policies(vault: hvac.Client) -> None:
     for config_path in Path(config.vault_configs_path).glob("*"):
         if config_path.name.endswith("-passwordrule.hcl"):
             with open(config_path, encoding="utf-8") as f:
-                LOG.info("Updating password policy %s.", config_path.stem)
+                LOG.info("Updating password policy [%s]", config_path.stem)
                 vault.write(f"sys/policies/password/{config_path.stem}", policy=f.read())
         elif config_path.name.endswith("-policy.hcl"):
             with open(config_path, encoding="utf-8") as f:
                 policy = f.read()
-            LOG.info("Updating policy %s.", config_path.stem)
+            LOG.info("Updating policy [%s]", config_path.stem)
             vault.sys.create_or_update_policy(name=config_path.stem, policy=policy)
         elif config_path.name.endswith("-role.json"):
             with open(config_path, encoding="utf-8") as f:
                 role = json.load(f)
-            LOG.info("Updating role %s.", config_path.stem)
+            LOG.info("Updating role [%s]", config_path.stem)
             vault.auth.kubernetes.create_role(name=config_path.stem, **role)
 
 def park() -> None:
     # keep the sidecar alive after setup completes.
-    LOG.info("Parking sidecar idle to avoid restart loops.")
+    LOG.info("Parking sidecar idle to avoid restart loops")
     while True:
         time.sleep(3600)
 
 def initialize_or_recover(vault: hvac.Client, provider: str, secret: str, vault_key_shares: int, vault_key_threshold: int, vault_auto_unseal: bool) -> None:
     if vault.sys.is_initialized():
-        LOG.info("Vault already initialized. Retrieving token from backend.")        
+        LOG.info("Vault already initialized. Retrieving token from backend")
         credentials = json.loads(set_or_get_secret(provider, secret, "get"))
         vault.token = credentials.get("root_token", "")
         if not vault.token:
@@ -321,7 +321,7 @@ def initialize_or_recover(vault: hvac.Client, provider: str, secret: str, vault_
         return
 
     # we are not initialized, run the init process to store the generated keys for the provider and unseal
-    LOG.info("Vault not initialized. Running init.")
+    LOG.info("Vault not initialized. Running init")
     preflight_checks(provider, secret) # ensure the secret backend is ready before initializing Vault *will throw if not ready*
     if vault_auto_unseal:
         response = vault.sys.initialize(recovery_shares=vault_key_shares, recovery_threshold=vault_key_threshold)
@@ -338,7 +338,7 @@ def initialize_or_recover(vault: hvac.Client, provider: str, secret: str, vault_
         },
         separators=(",", ":"),
     )
-    LOG.info("Storing init credentials in secret backend (%s).", provider)
+    LOG.info("Storing init credentials in secret backend [%s])", provider)
 
     # if this throws eg cannot put the secret, it will raise an exception which kill the process before we unseal
     set_or_get_secret(provider, secret, "put", credentials)
@@ -358,13 +358,13 @@ def main() -> None:
     if not match:
         raise RuntimeError(f"Cannot determine pod ordinal from HOSTNAME={config.hostname}")
     if match.group(1) != "0":
-        LOG.info("Pod %s is not ordinal-0. Skipping setup.", config.hostname)
+        LOG.info("Pod %s is not ordinal-0. Skipping setup", config.hostname)
         park()
-    if not config.secret:
+    if not config.secret_key:
         raise RuntimeError("SECRETS_MANAGER_SECRET_NAME is required")
 
-    # phase 1 and 2: wait for Vault, then initialize or recover credentials.
-    LOG.info("Phase 1 - Waiting for Vault API (%s).", config.vault_addr)
+    # wait for Vault, then initialize or recover credentials.
+    LOG.info("Waiting for Vault API (%s)", config.vault_addr)
     for attempt in range(60):
         try:
             with urllib.request.urlopen(config.vault_addr + "/v1/sys/health", timeout=3):
@@ -387,7 +387,7 @@ def main() -> None:
     initialize_or_recover(
         vault,
         config.provider,
-        config.secret,
+        config.secret_key,
         config.vault_key_shares,
         config.vault_key_threshold,
         config.vault_auto_unseal,
@@ -405,7 +405,7 @@ def main() -> None:
     configure_roles_and_policies(vault)
     configure_valkey(vault)
     
-    LOG.info("Vault setup complete.")
+    LOG.info("Vault setup complete")
     park()
 
 
