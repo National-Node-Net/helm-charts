@@ -55,6 +55,44 @@ with patch.dict(sys.modules, fake_modules):
 
 
 class ProviderTests(unittest.TestCase):
+    def test_aws_preflight_existing_secret_verifies_write_access(self):
+        # preserve an existing secret while checking PutSecretValue access.
+        client = Mock()
+        client.get_secret_value.return_value = {"SecretString": "credentials"}
+        boto3 = types.SimpleNamespace(client=Mock(return_value=client))
+        with patch.object(main, "boto3", boto3):
+            main.preflight_checks("aws", "secret")
+        client.get_secret_value.assert_called_once_with(SecretId="secret")
+        client.put_secret_value.assert_called_once_with(SecretId="secret", SecretString="credentials", VersionStages=["AWSCURRENT"])
+        client.create_secret.assert_not_called()
+
+    def test_aws_preflight_creates_missing_secret_and_verifies_write_access(self):
+        # create a placeholder and verify it can be updated before Vault init.
+        class ResourceNotFoundException(Exception):
+            pass
+
+        client = Mock()
+        client.exceptions = types.SimpleNamespace(ResourceNotFoundException=ResourceNotFoundException)
+        client.get_secret_value.side_effect = ResourceNotFoundException()
+        boto3 = types.SimpleNamespace(client=Mock(return_value=client))
+        with patch.object(main, "boto3", boto3):
+            main.preflight_checks("aws", "secret")
+        client.create_secret.assert_called_once_with(Name="secret", SecretString="vault-init-preflight")
+        client.put_secret_value.assert_called_once_with(SecretId="secret", SecretString="vault-init-preflight", VersionStages=["AWSCURRENT"])
+
+    def test_aws_preflight_requires_secret_string(self):
+        # reject an existing secret that cannot hold the bootstrap payload.
+        class ResourceNotFoundException(Exception):
+            pass
+
+        client = Mock()
+        client.exceptions = types.SimpleNamespace(ResourceNotFoundException=ResourceNotFoundException)
+        client.get_secret_value.return_value = {}
+        boto3 = types.SimpleNamespace(client=Mock(return_value=client))
+        with patch.object(main, "boto3", boto3):
+            with self.assertRaisesRegex(RuntimeError, "does not contain SecretString"):
+                main.preflight_checks("aws", "secret")
+
     def test_aws_read_and_write(self):
         # verify aws secret reads and writes use the expected api calls.
         client = Mock()
@@ -64,9 +102,32 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(main.set_or_get_secret("aws", "secret", "get"), "aws-value")
             main.set_or_get_secret("aws", "secret", "put", "new-value")
         client.get_secret_value.assert_called_once_with(SecretId="secret")
-        client.put_secret_value.assert_called_once_with(
-            SecretId="secret", SecretString="new-value", VersionStages=["AWSCURRENT"]
-        )
+        client.put_secret_value.assert_called_once_with(SecretId="secret", SecretString="new-value", VersionStages=["AWSCURRENT"])
+
+    def test_aws_write_propagates_error(self):
+        # do not hide permission, throttling, or connectivity failures.
+        class AccessDeniedException(Exception):
+            pass
+
+        client = Mock()
+        client.put_secret_value.side_effect = AccessDeniedException("access denied")
+        boto3 = types.SimpleNamespace(client=Mock(return_value=client))
+        with patch.object(main, "boto3", boto3):
+            with self.assertRaisesRegex(AccessDeniedException, "access denied"):
+                main.set_or_get_secret("aws", "secret", "put", "credentials")
+
+    def test_aws_read_reports_missing_secret(self):
+        # let Kubernetes handle an absent secret by restarting the sidecar.
+        class ResourceNotFoundException(Exception):
+            pass
+
+        client = Mock()
+        client.exceptions = types.SimpleNamespace(ResourceNotFoundException=ResourceNotFoundException)
+        client.get_secret_value.side_effect = ResourceNotFoundException()
+        boto3 = types.SimpleNamespace(client=Mock(return_value=client))
+        with patch.object(main, "boto3", boto3):
+            with self.assertRaises(ResourceNotFoundException):
+                main.set_or_get_secret("aws", "secret", "get")
 
     def test_azure_read_and_write(self):
         # verify azure secret names are normalized before access.
@@ -382,6 +443,31 @@ class VaultFlowTests(unittest.TestCase):
         read.assert_called_once_with("test", "secret", "get")
         unseal.assert_called_once()
         self.assertEqual(vault.token, "root")
+
+    def test_recover_existing_vault_propagates_missing_secret(self):
+        # let Kubernetes restart the sidecar when recovery credentials are absent.
+        vault = Mock()
+        vault.sys.is_initialized.return_value = True
+        missing = RuntimeError("secret not found")
+        with patch.object(main, "set_or_get_secret", side_effect=missing):
+            with self.assertRaisesRegex(RuntimeError, "secret not found"):
+                main.initialize_or_recover(vault, "aws", "secret", 5, 3, True)
+
+    def test_initialize_stores_credentials_before_unsealing(self):
+        # an AWS/IAM write failure must happen while Vault is still sealed.
+        vault = Mock()
+        vault.sys.is_initialized.return_value = False
+        vault.sys.initialize.return_value = {
+            "root_token": "root",
+            "keys_base64": ["key"],
+            "recovery_keys_base64": [],
+        }
+        events = []
+        with patch.object(main, "set_or_get_secret", side_effect=lambda *args: events.append("store")), patch.object(
+            main, "unseal", side_effect=lambda *args: events.append("unseal")
+        ):
+            main.initialize_or_recover(vault, "test", "secret", 5, 3, False)
+        self.assertEqual(events, ["store", "unseal"])
 
     def test_initialize_requires_root_token(self):
         # fail initialization when vault does not return a root token.

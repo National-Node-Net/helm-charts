@@ -48,11 +48,7 @@ if [[ "${1:-}" == "--test" ]]; then
     "$TEST_IMAGE"
   )
   mkdir -p "$TRIVY_CACHE_DIR"
-  docker run --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$TRIVY_CACHE_DIR:/root/.cache/trivy" \
-    aquasec/trivy:0.69.3 \
-    --cache-dir /root/.cache/trivy "${TRIVY_ARGS[@]}"
+  docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$TRIVY_CACHE_DIR:/root/.cache/trivy" aquasec/trivy:0.69.3 --cache-dir /root/.cache/trivy "${TRIVY_ARGS[@]}"
   exit 0
 fi
 

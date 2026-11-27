@@ -144,6 +144,9 @@ vault:
     replicas: 1
 
   vault:
+    global:
+      imagePullSecrets:
+        - name: image-pull-creds
     server:
       ha:
         enabled: false
@@ -180,7 +183,20 @@ vault:
         enabled: true
         size: 1Gi
         storageClass: standard
+      extraContainers:
+        - name: vault-setup
+          image: "537124944113.dkr.ecr.eu-west-2.amazonaws.com/n3-vault-init:1.0.1-20261118191509" # {"$imagepolicy": "flux-system:federator-suite-vault-init-image-policy"}
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: vault-init-config
+          volumeMounts:
+            - name: vault-policys
+              mountPath: /policys
+              readOnly: true
+
 
 # OPA — Local (KIND): single replica is enough for a functional smoke test
 opa:
   replicaCount: 1
+
