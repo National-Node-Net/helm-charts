@@ -78,3 +78,5 @@ coverage.xml
 
 # generated debug files anywhere in the repository
 debug_files/
+charts/federator-suite-vault-init/.cache/trivy/db/trivy.db
+charts/federator-suite-vault-init/.cache/trivy/db/metadata.json

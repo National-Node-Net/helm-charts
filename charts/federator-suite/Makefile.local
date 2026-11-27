@@ -1,0 +1,134 @@
+# Local Kind deployment for Federator Suite
+#
+# Usage:
+#   make -f Makefile.local
+#   make -f Makefile.local deploy
+#
+# This file intentionally contains only the local Kind workflow. The existing
+# Makefile is retained for legacy dev/prod commands.
+
+SHELL := /usr/bin/env bash
+
+.PHONY: help deploy setup_cluster image_pull_secrets build_deps install_prerequisites bootstrap_runtime_secrets validate test template status logs clean uninstall destroy
+
+RELEASE_NAME ?= federator-suite
+NAMESPACE ?= ia-federation
+KIND_CLUSTER ?= federator-suite-kind-cluster
+CHART_PATH := .
+MAKESCRIPTS := scripts/make
+RUNTIME_SECRETS_FILE ?=
+TYPE ?= aws
+CREDS ?=
+
+COMPONENT_VALUES := \
+  -f values/common-values.yaml \
+  -f values/kafka.yaml \
+  -f values/valkey.yaml \
+  -f values/vault.yaml \
+  -f values/certificate-manager.yaml \
+  -f values/opa.yaml \
+  -f values/federator.yaml \
+  -f values/istio.yaml
+
+VALUES_FILES := $(COMPONENT_VALUES) \
+  -f values/local/local.yml
+
+help:
+	@echo "Local Kind Federator Suite"
+	@echo
+	@echo "Usage: make -f Makefile.local [target] [RUNTIME_SECRETS_FILE=path]"
+	@echo
+	@echo "Targets:"
+	@echo "  deploy                    Create/configure Kind and deploy the chart"
+	@echo "  image_pull_secrets       Create/refresh the namespace registry Secret"
+	@echo "  validate                  Check local values and render the chart"
+	@echo "  test                      Render and lint the chart"
+	@echo "  template                  Render manifests to stdout"
+	@echo "  bootstrap_runtime_secrets Write local runtime JSON into Vault"
+	@echo "  status                    Show pods and services"
+	@echo "  logs                      Follow the Vault setup logs"
+	@echo "  uninstall                 Remove the Helm release"
+	@echo "  destroy                   Delete the local Kind cluster"
+
+deploy: validate setup_cluster build_deps install_prerequisites
+	@echo "==> Deploying $(RELEASE_NAME) (NS=$(NAMESPACE))..."
+	@helm upgrade --install $(RELEASE_NAME) $(CHART_PATH) \
+		-n $(NAMESPACE) $(VALUES_FILES) --timeout 10m
+	@$(MAKE) -f Makefile.local bootstrap_runtime_secrets
+	@echo "==> Waiting for federator-runtime-properties..."
+	@kubectl wait -n $(NAMESPACE) \
+		--for=condition=Ready vaultstaticsecret/federator-runtime-properties --timeout=10m
+	@kubectl rollout status -n $(NAMESPACE) deployment/$(RELEASE_NAME)-federator-server --timeout=10m
+	@kubectl rollout status -n $(NAMESPACE) deployment/$(RELEASE_NAME)-federator-client --timeout=10m
+	@$(MAKE) -f Makefile.local status
+
+setup_cluster:
+	@echo "==> Ensuring Kind cluster $(KIND_CLUSTER)..."
+	@if kind get clusters | grep -qx '$(KIND_CLUSTER)'; then \
+		echo "  Kind cluster exists"; \
+	else \
+		kind create cluster --name $(KIND_CLUSTER) --config kind-config.yaml; \
+	fi
+	@kubectl config use-context kind-$(KIND_CLUSTER)
+	@kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl label namespace $(NAMESPACE) istio-injection=enabled --overwrite || true
+
+image_pull_secrets:
+	@bash $(MAKESCRIPTS)/image_pull_secrets.sh \
+		"$(NAMESPACE)" "$(TYPE)" '$(CREDS)'
+
+build_deps:
+	@bash $(MAKESCRIPTS)/build_deps.sh
+
+install_prerequisites:
+	@bash $(MAKESCRIPTS)/install_strimzio.sh
+	@bash $(MAKESCRIPTS)/install_vault_secrets_operator.sh
+	@kubectl label namespace $(NAMESPACE) istio-injection=enabled --overwrite || true
+
+bootstrap_runtime_secrets:
+	@bash $(MAKESCRIPTS)/bootstrap_runtime_secrets.sh \
+		"$(NAMESPACE)" "$(RELEASE_NAME)" "$(RUNTIME_SECRETS_FILE)"
+
+validate:
+	@test -f values/common-values.yaml
+	@test -f values/kafka.yaml
+	@test -f values/valkey.yaml
+	@test -f values/vault.yaml
+	@test -f values/certificate-manager.yaml
+	@test -f values/opa.yaml
+	@test -f values/federator.yaml
+	@test -f values/istio.yaml
+	@test -f values/local/local.yml
+	@test -n "$(RUNTIME_SECRETS_FILE)" || (echo "ERROR: RUNTIME_SECRETS_FILE is required" && exit 1)
+	@test -f $(RUNTIME_SECRETS_FILE)
+	@jq -e 'type == "object"' $(RUNTIME_SECRETS_FILE) >/dev/null
+	@helm lint $(CHART_PATH) $(VALUES_FILES)
+	@echo "==> Local values validated for NAMESPACE=$(NAMESPACE)"
+
+test: validate
+	@helm template test-local $(CHART_PATH) $(VALUES_FILES) --namespace $(NAMESPACE) >/dev/null
+	@echo "==> Local chart rendered successfully"
+
+template:
+	@helm template $(RELEASE_NAME) $(CHART_PATH) -n $(NAMESPACE) $(VALUES_FILES)
+
+status:
+	@kubectl get pods -n $(NAMESPACE)
+	@kubectl get svc -n $(NAMESPACE)
+
+logs:
+	@kubectl logs -n $(NAMESPACE) statefulset/$(RELEASE_NAME)-vault -c vault-setup --tail=200 -f
+
+clean:
+	@$(MAKE) -f Makefile.local uninstall
+
+uninstall:
+	@helm uninstall $(RELEASE_NAME) -n $(NAMESPACE) --wait
+
+destroy:
+	@read -r -p "Delete Kind cluster $(KIND_CLUSTER)? [y/N] " answer; \
+	case "$$answer" in \
+		y|Y|yes|YES) kind delete cluster --name $(KIND_CLUSTER) ;; \
+		*) echo "Not deleted" ;; \
+	esac
+

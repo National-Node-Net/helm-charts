@@ -57,7 +57,29 @@ class Config:
 config = Config()
 
 
+def preflight_checks(provider: str, secret: str) -> None:
+    LOG.info("Running preflight checks for [%s] before continuing.", provider)
+    if provider == "aws":
+        client = boto3.client("secretsmanager", region_name=config.aws_region, endpoint_url=config.aws_endpoint_url)
+        try:
+            result = client.get_secret_value(SecretId=secret)
+            current_value = result.get("SecretString")
+            if current_value is None:
+                raise RuntimeError(f"AWS secret {secret} does not contain SecretString")
+
+            # Write the existing value back unchanged to verify write permission.
+            client.put_secret_value(SecretId=secret, SecretString=current_value, VersionStages=["AWSCURRENT"])
+        except client.exceptions.ResourceNotFoundException:
+            # create a placeholder and verify that it can also be updated. The
+            # real Vault credentials replace this value after initialization.
+            placeholder = "vault-init-preflight"
+            client.create_secret(Name=secret, SecretString=placeholder)
+            client.put_secret_value(SecretId=secret, SecretString=placeholder, VersionStages=["AWSCURRENT"])
+
+
 def set_or_get_secret(provider: str, secret: str, operation: str, value: str | None = None) -> str:
+    LOG.info("Handling secrets for [%s]", provider)
+
     # read or write the configured secret using one provider-specific path.
     if provider == "local":
         # use Kubernetes as the local credential store.
@@ -282,45 +304,49 @@ def configure_roles_and_policies(vault: hvac.Client) -> None:
             LOG.info("Updating role %s.", config_path.stem)
             vault.auth.kubernetes.create_role(name=config_path.stem, **role)
 
-
 def park() -> None:
     # keep the sidecar alive after setup completes.
     LOG.info("Parking sidecar idle to avoid restart loops.")
     while True:
         time.sleep(3600)
 
-
 def initialize_or_recover(vault: hvac.Client, provider: str, secret: str, vault_key_shares: int, vault_key_threshold: int, vault_auto_unseal: bool) -> None:
-    # initialize Vault once or recover its stored bootstrap credentials.
-    # initialize once, then recover the stored root token on later runs.
-    if not vault.sys.is_initialized():
-        LOG.info("Vault not initialized. Running init.")
-        if vault_auto_unseal:
-            response = vault.sys.initialize(recovery_shares=vault_key_shares, recovery_threshold=vault_key_threshold)
-        else:
-            response = vault.sys.initialize(secret_shares=vault_key_shares, secret_threshold=vault_key_threshold)
-        vault.token = response.get("root_token", "")
-        if not vault.token:
-            raise RuntimeError("Init failed: root token not found")
-        unseal(vault, vault_auto_unseal, response)
-        credentials = json.dumps(
-            {
-                "root_token": vault.token,
-                "recovery_keys_b64": response.get("recovery_keys_base64", []),
-                "unseal_keys_b64": response.get("keys_base64", []),
-            },
-            separators=(",", ":"),
-        )
-        LOG.info("Storing init credentials in secret backend (%s).", provider)
-        set_or_get_secret(provider, secret, "put", credentials)
-    else:
+    if vault.sys.is_initialized():
         LOG.info("Vault already initialized. Retrieving token from backend.")        
         credentials = json.loads(set_or_get_secret(provider, secret, "get"))
         vault.token = credentials.get("root_token", "")
         if not vault.token:
             raise RuntimeError("root_token not found in secret backend payload")
         unseal(vault, vault_auto_unseal, credentials)
+        return
 
+    # we are not initialized, run the init process to store the generated keys for the provider and unseal
+    LOG.info("Vault not initialized. Running init.")
+    preflight_checks(provider, secret) # ensure the secret backend is ready before initializing Vault *will throw if not ready*
+    if vault_auto_unseal:
+        response = vault.sys.initialize(recovery_shares=vault_key_shares, recovery_threshold=vault_key_threshold)
+    else:
+        response = vault.sys.initialize(secret_shares=vault_key_shares, secret_threshold=vault_key_threshold)
+    vault.token = response.get("root_token", "")
+    if not vault.token:
+        raise RuntimeError("Init failed: root token not found")
+    credentials = json.dumps(
+        {
+            "root_token": vault.token,
+            "recovery_keys_b64": response.get("recovery_keys_base64", []),
+            "unseal_keys_b64": response.get("keys_base64", []),
+        },
+        separators=(",", ":"),
+    )
+    LOG.info("Storing init credentials in secret backend (%s).", provider)
+
+    # if this throws eg cannot put the secret, it will raise an exception which kill the process before we unseal
+    set_or_get_secret(provider, secret, "put", credentials)
+
+    # Only unseal after the generated credentials have been persisted. If
+    # storage fails, the exception terminates the sidecar and Kubernetes
+    # can restart it without Vault continuing with an unpersisted key set.
+    unseal(vault, vault_auto_unseal, response)
 
 def main() -> None:
     # run the Vault setup flow for the ordinal-zero instance.
